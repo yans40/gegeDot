@@ -1,0 +1,39 @@
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add default labels based on title keywords
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: >-
+            ${{ contains(github.event.issue.title, 'Fix') && 'bug' || '' }},
+            ${{ contains(github.event.issue.title, 'Setup') && 'frontend' || '' }},
+            ${{ contains(github.event.issue.title, 'Deploy') && 'deployment' || '' }},
+            ${{ contains(github.event.issue.title, 'visualization') && 'feature' || '' }},
+            ${{ contains(github.event.issue.title, 'testing') && 'testing' || '' }}
+
+      - name: Comment a welcome message
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            👋 Thanks for opening this issue!
+            
+            We'll triage it shortly. In the meantime, please ensure the issue includes:
+            - Steps to reproduce (if bug)
+            - Expected vs actual behavior
+            - Relevant logs, screenshots, or stack traces
+            - Environment details (OS, versions)
+
+
