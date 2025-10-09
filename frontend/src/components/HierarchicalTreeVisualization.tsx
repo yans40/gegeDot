@@ -145,10 +145,21 @@ const HierarchicalTreeVisualization: React.FC<HierarchicalTreeVisualizationProps
         level: 1
       };
       nodes.push(parentNode);
+      
+      // Link parents to ALL children (main person + siblings)
       links.push({
         source: parent.id,
         target: data.person.id,
         type: 'parent-child'
+      });
+      
+      // Link parents to siblings
+      data.siblings.forEach(sibling => {
+        links.push({
+          source: parent.id,
+          target: sibling.id,
+          type: 'parent-child'
+        });
       });
     });
 
@@ -285,17 +296,65 @@ const HierarchicalTreeVisualization: React.FC<HierarchicalTreeVisualizationProps
       nodesByLevel.get(node.level)!.push(node);
     });
 
-    // Calculate positions for each level
-    nodesByLevel.forEach((levelNodes, level) => {
-      const y = centerY + (level * levelSpacing);
-      const totalWidth = (levelNodes.length - 1) * siblingSpacing;
-      const startX = centerX - (totalWidth / 2);
+    // First pass: calculate positions for all levels except parents
+    const sortedLevels = Array.from(nodesByLevel.keys()).sort((a, b) => a - b);
+    
+    sortedLevels.forEach(level => {
+      if (level !== 1) { // Skip parents for now
+        const levelNodes = nodesByLevel.get(level)!;
+        // Level 0 (children) at centerY, level -1 (grandchildren) below, level 2 (grandparents) above
+        let y;
+        if (level === 2) {
+          // Grandparents should be above parents (level 1 is at centerY - levelSpacing)
+          y = centerY - (2 * levelSpacing);
+        } else {
+          y = centerY + (level * levelSpacing);
+        }
+        
+        const totalWidth = (levelNodes.length - 1) * siblingSpacing;
+        const startX = centerX - (totalWidth / 2);
 
-      levelNodes.forEach((node, index) => {
-        node.x = startX + (index * siblingSpacing);
-        node.y = y;
-      });
+        levelNodes.forEach((node, index) => {
+          node.x = startX + (index * siblingSpacing);
+          node.y = y;
+        });
+      }
     });
+    
+    // Second pass: calculate positions for parents (level 1) based on their children
+    if (nodesByLevel.has(1)) {
+      const parentNodes = nodesByLevel.get(1)!;
+      // Parents should be ABOVE children, so y should be smaller (level 1 = above level 0)
+      const y = centerY - levelSpacing; // Above the children
+      
+      // Find the main person and their siblings to center parents above them
+      const mainPerson = nodes.find(n => n.type === 'main');
+      const siblings = nodes.filter(n => n.type === 'sibling' && n.level === 0);
+      const allLevel0Nodes = [mainPerson, ...siblings].filter(Boolean) as HierarchicalNode[];
+      
+      if (allLevel0Nodes.length > 0 && allLevel0Nodes.every(node => node.x !== undefined)) {
+        // Calculate the center of level 0 nodes
+        const level0CenterX = allLevel0Nodes.reduce((sum, node) => sum + (node.x || 0), 0) / allLevel0Nodes.length;
+        
+        // Position parents centered above their children
+        const totalWidth = (parentNodes.length - 1) * siblingSpacing;
+        const startX = level0CenterX - (totalWidth / 2);
+        
+        parentNodes.forEach((node, index) => {
+          node.x = startX + (index * siblingSpacing);
+          node.y = y;
+        });
+      } else {
+        // Fallback to center positioning
+        const totalWidth = (parentNodes.length - 1) * siblingSpacing;
+        const startX = centerX - (totalWidth / 2);
+        
+        parentNodes.forEach((node, index) => {
+          node.x = startX + (index * siblingSpacing);
+          node.y = y;
+        });
+      }
+    }
 
     return nodes;
   };
