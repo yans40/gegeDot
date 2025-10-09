@@ -1,0 +1,70 @@
+name: Docker Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Test avec Docker Compose
+  docker-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build images
+      run: |
+        docker-compose -f docker-compose.yml build
+
+    - name: Start services
+      run: |
+        docker-compose -f docker-compose.yml up -d
+        sleep 30
+
+    - name: Wait for services to be ready
+      run: |
+        # Attendre que MySQL soit prêt
+        timeout 60 bash -c 'until docker exec gegeDot-mysql mysqladmin ping -h"localhost" --silent; do sleep 2; done'
+        
+        # Attendre que l'API soit prête
+        timeout 60 bash -c 'until curl -f http://localhost:5000/swagger; do sleep 2; done'
+        
+        # Attendre que le frontend soit prêt
+        timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+    - name: Test API endpoints
+      run: |
+        # Test de l'endpoint des personnes
+        curl -f http://localhost:5000/api/persons || exit 1
+        
+        # Test de création d'une personne
+        curl -X POST http://localhost:5000/api/persons \
+          -H "Content-Type: application/json" \
+          -d '{"firstName":"Test","lastName":"User","gender":"M"}' || exit 1
+
+    - name: Test Frontend
+      run: |
+        # Vérifier que le frontend répond
+        curl -f http://localhost:3000 || exit 1
+
+    - name: Show logs on failure
+      if: failure()
+      run: |
+        echo "=== Backend Logs ==="
+        docker logs gegeDot-backend
+        echo "=== Frontend Logs ==="
+        docker logs gegeDot-frontend
+        echo "=== MySQL Logs ==="
+        docker logs gegeDot-mysql
+
+    - name: Cleanup
+      if: always()
+      run: |
+        docker-compose -f docker-compose.yml down -v
+        docker system prune -f

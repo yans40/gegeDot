@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Base de données MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: gegeDot-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: gegeDot
+      MYSQL_USER: gegedot
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - gegeDot-network
+    restart: unless-stopped
+
+  # Backend .NET API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gegeDot-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=mysql;Database=gegeDot;Uid=gegedot;Pwd=password;Port=3306;
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    depends_on:
+      - mysql
+    networks:
+      - gegeDot-network
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+    command: dotnet watch run --urls="http://+:5000"
+
+  # Frontend React (commenté pour l'instant)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: gegeDot-frontend
+  #   ports:
+  #     - "3000:80"
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - gegeDot-network
+  #   restart: unless-stopped
+
+  # phpMyAdmin pour gérer la base de données (optionnel)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: gegeDot-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: gegedot
+      PMA_PASSWORD: password
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+    networks:
+      - gegeDot-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+
+networks:
+  gegeDot-network:
+    driver: bridge
