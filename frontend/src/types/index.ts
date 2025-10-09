@@ -155,3 +155,4 @@ export interface TreeStatistics {
   youngestPerson?: Person;
   mostCommonSurname?: string;
 }
+

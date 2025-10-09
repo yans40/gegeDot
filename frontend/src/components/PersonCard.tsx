@@ -190,3 +190,4 @@ const PersonCard: React.FC<PersonCardProps> = ({
 };
 
 export default PersonCard;
+
