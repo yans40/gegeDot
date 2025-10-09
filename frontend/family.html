@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GegeDot - Relations Familiales</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .controls button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .person-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .person-selector select {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            min-width: 200px;
+        }
+        
+        .family-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .family-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 5px solid;
+        }
+        
+        .family-section.parents { border-left-color: #4CAF50; }
+        .family-section.children { border-left-color: #2196F3; }
+        .family-section.siblings { border-left-color: #FF9800; }
+        .family-section.spouse { border-left-color: #E91E63; }
+        .family-section.grandparents { border-left-color: #9C27B0; }
+        .family-section.grandchildren { border-left-color: #00BCD4; }
+        
+        .family-section h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .family-section h3::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        .person-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .person-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .person-card.male { border-left: 4px solid #2196F3; }
+        .person-card.female { border-left: 4px solid #E91E63; }
+        .person-card.other { border-left: 4px solid #9C27B0; }
+        
+        .person-card h4 {
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+        
+        .person-card p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .status-message {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .info-message {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .family-stats {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .family-stats h2 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌳 GegeDot - Relations Familiales</h1>
+        <p>Explorez les liens familiaux et découvrez l'arbre généalogique</p>
+    </div>
+
+    <div class="controls">
+        <button onclick="loadAllPersons()">Charger les personnes</button>
+        <button onclick="addTestRelationships()">Ajouter relations test</button>
+        <button onclick="clearDisplay()">Effacer l'affichage</button>
+    </div>
+
+    <div class="person-selector">
+        <label for="personSelect"><strong>Sélectionner une personne :</strong></label>
+        <select id="personSelect" onchange="loadFamily()">
+            <option value="">-- Choisir une personne --</option>
+        </select>
+        <button onclick="loadFamily()">Afficher la famille</button>
+    </div>
+
+    <div id="status" class="status-message info-message">Prêt à explorer les relations familiales...</div>
+
+    <div id="familyStats" class="family-stats" style="display: none;">
+        <h2>📊 Statistiques de la famille</h2>
+        <div class="stats-grid" id="statsGrid">
+            <!-- Les statistiques seront affichées ici -->
+        </div>
+    </div>
+
+    <div id="familyDisplay" class="family-display">
+        <!-- Les sections familiales seront affichées ici -->
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api';
+        const personSelect = document.getElementById('personSelect');
+        const statusDiv = document.getElementById('status');
+        const familyDisplayDiv = document.getElementById('familyDisplay');
+        const familyStatsDiv = document.getElementById('familyStats');
+        const statsGridDiv = document.getElementById('statsGrid');
+
+        function showStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message ${type}-message`;
+        }
+
+        function showLoading() {
+            statusDiv.innerHTML = '<span class="loading">Chargement en cours</span>';
+        }
+
+        async function loadAllPersons() {
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const persons = await response.json();
+                
+                // Mettre à jour le sélecteur
+                personSelect.innerHTML = '<option value="">-- Choisir une personne --</option>';
+                persons.forEach(person => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.fullName} (${person.gender || 'Non spécifié'})`;
+                    personSelect.appendChild(option);
+                });
+                
+                showStatus(`✅ ${persons.length} personnes chargées avec succès !`, 'success');
+            } catch (error) {
+                console.error('Erreur lors du chargement des personnes:', error);
+                showStatus(`❌ Erreur lors du chargement des personnes: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadFamily() {
+            const personId = personSelect.value;
+            if (!personId) {
+                showStatus('⚠️ Veuillez sélectionner une personne', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE_URL}/relationships/person/${personId}/family`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const family = await response.json();
+                
+                displayFamily(family);
+                displayFamilyStats(family);
+                
+                showStatus(`✅ Famille de ${family.person.fullName} chargée avec succès !`, 'success');
+            } catch (error) {
+                console.error('Erreur lors du chargement de la famille:', error);
+                showStatus(`❌ Erreur lors du chargement de la famille: ${error.message}`, 'error');
+            }
+        }
+
+        function displayFamily(family) {
+            familyDisplayDiv.innerHTML = '';
+            
+            // Personne principale
+            const mainPersonSection = createFamilySection('person', '👤 Personne principale', [family.person]);
+            familyDisplayDiv.appendChild(mainPersonSection);
+            
+            // Parents
+            if (family.parents && family.parents.length > 0) {
+                const parentsSection = createFamilySection('parents', '👨‍👩‍👧‍👦 Parents', family.parents);
+                familyDisplayDiv.appendChild(parentsSection);
+            }
+            
+            // Enfants
+            if (family.children && family.children.length > 0) {
+                const childrenSection = createFamilySection('children', '👶 Enfants', family.children);
+                familyDisplayDiv.appendChild(childrenSection);
+            }
+            
+            // Frères et sœurs
+            if (family.siblings && family.siblings.length > 0) {
+                const siblingsSection = createFamilySection('siblings', '👫 Frères et sœurs', family.siblings);
+                familyDisplayDiv.appendChild(siblingsSection);
+            }
+            
+            // Conjoint
+            if (family.spouse) {
+                const spouseSection = createFamilySection('spouse', '💕 Conjoint', [family.spouse]);
+                familyDisplayDiv.appendChild(spouseSection);
+            }
+            
+            // Grands-parents
+            if (family.grandparents && family.grandparents.length > 0) {
+                const grandparentsSection = createFamilySection('grandparents', '👴👵 Grands-parents', family.grandparents);
+                familyDisplayDiv.appendChild(grandparentsSection);
+            }
+            
+            // Petits-enfants
+            if (family.grandchildren && family.grandchildren.length > 0) {
+                const grandchildrenSection = createFamilySection('grandchildren', '👶👶 Petits-enfants', family.grandchildren);
+                familyDisplayDiv.appendChild(grandchildrenSection);
+            }
+        }
+
+        function createFamilySection(className, title, persons) {
+            const section = document.createElement('div');
+            section.className = `family-section ${className}`;
+            
+            const titleElement = document.createElement('h3');
+            titleElement.textContent = title;
+            section.appendChild(titleElement);
+            
+            persons.forEach(person => {
+                const personCard = createPersonCard(person);
+                section.appendChild(personCard);
+            });
+            
+            return section;
+        }
+
+        function createPersonCard(person) {
+            const card = document.createElement('div');
+            card.className = `person-card ${person.gender ? person.gender.toLowerCase() : 'other'}`;
+            
+            card.innerHTML = `
+                <div>
+                    <h4>${person.fullName || 'Nom Inconnu'}</h4>
+                    <p><strong>Genre:</strong> ${person.gender || 'Non spécifié'}</p>
+                    <p><strong>Né(e) le:</strong> ${person.birthDate ? new Date(person.birthDate).toLocaleDateString() : 'Non spécifié'}</p>
+                    <p><strong>Lieu de naissance:</strong> ${person.birthPlace || 'Non spécifié'}</p>
+                    <p><strong>Âge:</strong> ${person.age !== null ? person.age + ' ans' : 'Non spécifié'}</p>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function displayFamilyStats(family) {
+            familyStatsDiv.style.display = 'block';
+            
+            const stats = [
+                { label: 'Total membres', value: family.totalFamilyMembers },
+                { label: 'Parents', value: family.parents ? family.parents.length : 0 },
+                { label: 'Enfants', value: family.children ? family.children.length : 0 },
+                { label: 'Frères/Sœurs', value: family.siblings ? family.siblings.length : 0 },
+                { label: 'Conjoint', value: family.spouse ? 1 : 0 },
+                { label: 'Grands-parents', value: family.grandparents ? family.grandparents.length : 0 },
+                { label: 'Petits-enfants', value: family.grandchildren ? family.grandchildren.length : 0 }
+            ];
+            
+            statsGridDiv.innerHTML = '';
+            stats.forEach(stat => {
+                const statItem = document.createElement('div');
+                statItem.className = 'stat-item';
+                statItem.innerHTML = `
+                    <div class="stat-number">${stat.value}</div>
+                    <div class="stat-label">${stat.label}</div>
+                `;
+                statsGridDiv.appendChild(statItem);
+            });
+        }
+
+        async function addTestRelationships() {
+            showLoading();
+            try {
+                // Exécuter le script SQL pour ajouter les relations
+                showStatus('⚠️ Veuillez exécuter le script SQL add_family_relationships.sql dans phpMyAdmin pour ajouter les relations de test', 'info');
+            } catch (error) {
+                console.error('Erreur lors de l\'ajout des relations:', error);
+                showStatus(`❌ Erreur lors de l'ajout des relations: ${error.message}`, 'error');
+            }
+        }
+
+        function clearDisplay() {
+            familyDisplayDiv.innerHTML = '';
+            familyStatsDiv.style.display = 'none';
+            showStatus('Affichage effacé.', 'info');
+        }
+
+        // Charger les personnes au démarrage
+        document.addEventListener('DOMContentLoaded', loadAllPersons);
+    </script>
+</body>
+</html>
+

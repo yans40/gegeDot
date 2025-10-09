@@ -56,6 +56,16 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Person2, opt => opt.Ignore())
             .ForMember(dest => dest.RelationshipType, opt => opt.MapFrom(src => (RelationshipType)src.RelationshipType));
 
+        // Family mappings
+        CreateMap<Person, FamilyDto>()
+            .ForMember(dest => dest.Person, opt => opt.MapFrom(src => src))
+            .ForMember(dest => dest.Parents, opt => opt.Ignore())
+            .ForMember(dest => dest.Children, opt => opt.Ignore())
+            .ForMember(dest => dest.Siblings, opt => opt.Ignore())
+            .ForMember(dest => dest.Spouse, opt => opt.Ignore())
+            .ForMember(dest => dest.Grandparents, opt => opt.Ignore())
+            .ForMember(dest => dest.Grandchildren, opt => opt.Ignore());
+
         // Tree mappings
         CreateMap<Tree, TreeDto>()
             .ForMember(dest => dest.RootPersonName, opt => opt.MapFrom(src => src.RootPerson != null ? src.RootPerson.FullName : null));

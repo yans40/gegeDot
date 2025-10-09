@@ -33,6 +33,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Services
 builder.Services.AddScoped<IPersonService, PersonService>();
+builder.Services.AddScoped<IRelationshipService, RelationshipService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(GegeDot.Services.Mappings.MappingProfile));

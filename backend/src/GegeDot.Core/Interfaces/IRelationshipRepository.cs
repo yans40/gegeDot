@@ -13,4 +13,13 @@ public interface IRelationshipRepository
     Task<bool> DeleteAsync(int id);
     Task<bool> ExistsAsync(int id);
     Task<bool> RelationshipExistsAsync(int person1Id, int person2Id, RelationshipType type);
+    
+    // Family relationship methods
+    Task<Relationship?> GetByPersonsAndTypeAsync(int person1Id, int person2Id, RelationshipType type);
+    Task<IEnumerable<Person>> GetParentsAsync(int personId);
+    Task<IEnumerable<Person>> GetChildrenAsync(int personId);
+    Task<IEnumerable<Person>> GetSiblingsAsync(int personId);
+    Task<Person?> GetSpouseAsync(int personId);
+    Task<IEnumerable<Person>> GetGrandparentsAsync(int personId);
+    Task<IEnumerable<Person>> GetGrandchildrenAsync(int personId);
 }
