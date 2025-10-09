@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GegeDot - Visualisation Hiérarchique v2.3</title>
+    <title>GegeDot - Visualisation Hiérarchique v3.0 (Liens Parents-Enfants)</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -201,11 +201,17 @@
         
         .link {
             fill: none;
-            stroke-width: 2px;
+            stroke-width: 4px;
+            stroke-opacity: 0;
+            transition: stroke-opacity 0.3s ease;
+        }
+        
+        .link.visible {
+            stroke-opacity: 0.8;
         }
         
         .link.parent-child {
-            stroke: #666;
+            stroke: #333;
         }
         
         .link.marriage {
@@ -300,7 +306,7 @@
 
         // Load persons on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Initializing hierarchical tree visualization v2.3 - ' + new Date().toISOString());
+            console.log('Initializing hierarchical tree visualization v3.0 (Parent-Child Links) - ' + new Date().toISOString());
             loadPersons();
             setupEventListeners();
         });
@@ -401,23 +407,19 @@
                     level: 1
                 };
                 nodes.push(parentNode);
-                
-                // Link parents to ALL children (main person + siblings)
-                links.push({
-                    source: parent.id,
-                    target: data.person.id,
-                    type: 'parent-child'
-                });
-                
-                // Link parents to siblings
-                data.siblings.forEach(sibling => {
+            });
+            
+            // Add clean vertical links from parents to center of children
+            if (data.parents.length > 0) {
+                data.parents.forEach(parent => {
+                    // Link each parent to the main person (center of children)
                     links.push({
                         source: parent.id,
-                        target: sibling.id,
+                        target: data.person.id,
                         type: 'parent-child'
                     });
                 });
-            });
+            }
 
             // Add siblings (level 0, same as main person)
             data.siblings.forEach(sibling => {
@@ -433,10 +435,14 @@
                     level: 0
                 };
                 nodes.push(siblingNode);
-                links.push({
-                    source: data.person.id,
-                    target: sibling.id,
-                    type: 'sibling'
+                
+                // Add links between siblings and parents (not between siblings)
+                data.parents.forEach(parent => {
+                    links.push({
+                        source: parent.id,
+                        target: sibling.id,
+                        type: 'parent-child'
+                    });
                 });
             });
 
@@ -496,16 +502,19 @@
                     level: 2
                 };
                 nodes.push(grandparentNode);
-                
-                // Link to parents
-                data.parents.forEach(parent => {
+            });
+            
+            // Add clean vertical links from grandparents to center of parents
+            if (data.grandparents.length > 0 && data.parents.length > 0) {
+                data.grandparents.forEach(grandparent => {
+                    // Link each grandparent to the first parent (center of parents)
                     links.push({
                         source: grandparent.id,
-                        target: parent.id,
+                        target: data.parents[0].id,
                         type: 'parent-child'
                     });
                 });
-            });
+            }
 
             // Add grandchildren (level -2)
             data.grandchildren.forEach(grandchild => {
@@ -521,16 +530,19 @@
                     level: -2
                 };
                 nodes.push(grandchildNode);
-                
-                // Link to children
+            });
+            
+            // Add clean vertical links from children to center of grandchildren
+            if (data.children.length > 0 && data.grandchildren.length > 0) {
                 data.children.forEach(child => {
+                    // Link each child to the first grandchild (center of grandchildren)
                     links.push({
                         source: child.id,
-                        target: grandchild.id,
+                        target: data.grandchildren[0].id,
                         type: 'parent-child'
                     });
                 });
-            });
+            }
 
             return { nodes, links };
         }
@@ -658,6 +670,8 @@
                         .attr('x2', targetNode.x)
                         .attr('y2', targetNode.y)
                         .attr('class', `link ${link.type}`)
+                        .attr('data-source', sourceNode.id)
+                        .attr('data-target', targetNode.id)
                         .style('stroke', getLinkColor(link.type))
                         .style('stroke-width', getLinkWidth(link.type))
                         .style('stroke-dasharray', getLinkDashArray(link.type));
@@ -696,17 +710,31 @@
                         document.getElementById('loadTree').disabled = false;
                     });
 
-                    // Add tooltip
+                    // Add tooltip and show links on hover
                     nodeElement.on('mouseover', function(event) {
+                        // Show tooltip
                         const tooltip = d3.select('body').append('div')
                             .attr('class', 'tooltip')
                             .style('left', (event.pageX + 10) + 'px')
                             .style('top', (event.pageY - 10) + 'px')
                             .html(`${node.name}<br/>${node.gender} • ${node.isAlive ? 'Vivant' : 'Décédé'}<br/>${node.birthDate ? `Né: ${node.birthDate}` : ''}<br/>${node.deathDate ? `Décédé: ${node.deathDate}` : ''}`);
+                        
+                        // Show links connected to this node
+                        d3.selectAll('.link')
+                            .filter(function() {
+                                const sourceId = d3.select(this).attr('data-source');
+                                const targetId = d3.select(this).attr('data-target');
+                                return sourceId == node.id || targetId == node.id;
+                            })
+                            .classed('visible', true);
                     });
 
                     nodeElement.on('mouseout', () => {
+                        // Hide tooltip
                         d3.selectAll('.tooltip').remove();
+                        
+                        // Hide all links
+                        d3.selectAll('.link').classed('visible', false);
                     });
                 }
             });

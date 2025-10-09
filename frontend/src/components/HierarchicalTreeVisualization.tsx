@@ -145,23 +145,19 @@ const HierarchicalTreeVisualization: React.FC<HierarchicalTreeVisualizationProps
         level: 1
       };
       nodes.push(parentNode);
-      
-      // Link parents to ALL children (main person + siblings)
-      links.push({
-        source: parent.id,
-        target: data.person.id,
-        type: 'parent-child'
-      });
-      
-      // Link parents to siblings
-      data.siblings.forEach(sibling => {
+    });
+    
+    // Add clean vertical links from parents to center of children
+    if (data.parents.length > 0) {
+      data.parents.forEach(parent => {
+        // Link each parent to the main person (center of children)
         links.push({
           source: parent.id,
-          target: sibling.id,
+          target: data.person.id,
           type: 'parent-child'
         });
       });
-    });
+    }
 
     // Add siblings (level 0, same as main person)
     data.siblings.forEach(sibling => {
@@ -177,11 +173,7 @@ const HierarchicalTreeVisualization: React.FC<HierarchicalTreeVisualizationProps
         level: 0
       };
       nodes.push(siblingNode);
-      links.push({
-        source: data.person.id,
-        target: sibling.id,
-        type: 'sibling'
-      });
+      // No direct links between siblings - they are visually connected by being on the same level
     });
 
     // Add spouse (level 0, same as main person)
@@ -240,16 +232,19 @@ const HierarchicalTreeVisualization: React.FC<HierarchicalTreeVisualizationProps
         level: 2
       };
       nodes.push(grandparentNode);
-      
-      // Link to parents
-      data.parents.forEach(parent => {
+    });
+    
+    // Add clean vertical links from grandparents to center of parents
+    if (data.grandparents.length > 0 && data.parents.length > 0) {
+      data.grandparents.forEach(grandparent => {
+        // Link each grandparent to the first parent (center of parents)
         links.push({
           source: grandparent.id,
-          target: parent.id,
+          target: data.parents[0].id,
           type: 'parent-child'
         });
       });
-    });
+    }
 
     // Add grandchildren (level -2)
     data.grandchildren.forEach(grandchild => {
@@ -265,16 +260,19 @@ const HierarchicalTreeVisualization: React.FC<HierarchicalTreeVisualizationProps
         level: -2
       };
       nodes.push(grandchildNode);
-      
-      // Link to children
+    });
+    
+    // Add clean vertical links from children to center of grandchildren
+    if (data.children.length > 0 && data.grandchildren.length > 0) {
       data.children.forEach(child => {
+        // Link each child to the first grandchild (center of grandchildren)
         links.push({
           source: child.id,
-          target: grandchild.id,
+          target: data.grandchildren[0].id,
           type: 'parent-child'
         });
       });
-    });
+    }
 
     return { nodes, links };
   };
