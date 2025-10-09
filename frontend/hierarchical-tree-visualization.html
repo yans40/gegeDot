@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GegeDot - Visualisation Hiérarchique</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .controls button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .controls button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .person-selector {
+            margin-bottom: 20px;
+        }
+        
+        .person-selector select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        
+        .visualization-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 600px;
+            position: relative;
+        }
+        
+        .legend {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 200px;
+        }
+        
+        .legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .legend-line {
+            width: 20px;
+            height: 2px;
+            margin-right: 8px;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #e74c3c;
+            background-color: #fdf2f2;
+            border: 1px solid #fecaca;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .zoom-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .zoom-controls button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .zoom-controls button:hover {
+            background: #f0f0f0;
+        }
+        
+        /* SVG Styles */
+        .node circle {
+            cursor: pointer;
+            stroke-width: 2px;
+        }
+        
+        .node.main circle {
+            stroke: #FFD700;
+            stroke-width: 3px;
+        }
+        
+        .node text {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 11px;
+            text-anchor: middle;
+            pointer-events: none;
+            fill: #333;
+        }
+        
+        .node.main text {
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .link {
+            fill: none;
+            stroke-width: 2px;
+        }
+        
+        .link.parent-child {
+            stroke: #666;
+        }
+        
+        .link.marriage {
+            stroke: #E24A90;
+            stroke-dasharray: 5,5;
+        }
+        
+        .link.sibling {
+            stroke: #4A90E2;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 10000;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌳 GegeDot - Visualisation Hiérarchique</h1>
+        <p>Layout organisé par niveaux générationnels</p>
+    </div>
+
+    <div class="controls">
+        <div class="person-selector">
+            <select id="personSelect">
+                <option value="">-- Choisir une personne --</option>
+            </select>
+        </div>
+        <button id="loadTree" disabled>Charger l'arbre hiérarchique</button>
+        <button id="refreshData">Actualiser</button>
+    </div>
+
+    <div class="zoom-controls">
+        <button id="zoomIn" title="Zoom avant">+</button>
+        <button id="zoomOut" title="Zoom arrière">-</button>
+        <button id="resetZoom" title="Réinitialiser">⌂</button>
+        <button id="centerMain" title="Centrer sur la personne principale">◎</button>
+    </div>
+
+    <div class="legend">
+        <h3>Légende</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #4A90E2;"></div>
+            <span>Homme</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #E24A90;"></div>
+            <span>Femme</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #90E24A;"></div>
+            <span>Autre</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ccc;"></div>
+            <span>Décédé</span>
+        </div>
+        <h3>Relations</h3>
+        <div class="legend-item">
+            <div class="legend-line" style="background-color: #666;"></div>
+            <span>Parent-Enfant</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-line" style="background-color: #E24A90;"></div>
+            <span>Mariage</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-line" style="background-color: #4A90E2;"></div>
+            <span>Frères/Sœurs</span>
+        </div>
+    </div>
+
+    <div class="visualization-container">
+        <div id="status" class="status">
+            Sélectionnez une personne pour visualiser son arbre généalogique hiérarchique
+        </div>
+        <svg id="treeSvg" width="100%" height="600"></svg>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api';
+        let currentFamilyData = null;
+        let currentZoom = d3.zoomIdentity;
+
+        // Load persons on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPersons();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('personSelect').addEventListener('change', function() {
+                const loadButton = document.getElementById('loadTree');
+                loadButton.disabled = !this.value;
+            });
+
+            document.getElementById('loadTree').addEventListener('click', loadFamilyTree);
+            document.getElementById('refreshData').addEventListener('click', loadPersons);
+            document.getElementById('zoomIn').addEventListener('click', zoomIn);
+            document.getElementById('zoomOut').addEventListener('click', zoomOut);
+            document.getElementById('resetZoom').addEventListener('click', resetZoom);
+            document.getElementById('centerMain').addEventListener('click', centerOnMain);
+        }
+
+        async function loadPersons() {
+            try {
+                updateStatus('Chargement des personnes...', true);
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const persons = await response.json();
+                
+                const select = document.getElementById('personSelect');
+                select.innerHTML = '<option value="">-- Choisir une personne --</option>';
+                persons.forEach(person => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.fullName} (${person.gender})`;
+                    select.appendChild(option);
+                });
+                
+                updateStatus('Personnes chargées. Sélectionnez une personne pour visualiser son arbre.');
+            } catch (error) {
+                updateStatus(`Erreur lors du chargement des personnes: ${error.message}`, false, true);
+            }
+        }
+
+        async function loadFamilyTree() {
+            const selectedPersonId = document.getElementById('personSelect').value;
+            if (!selectedPersonId) {
+                updateStatus('Veuillez sélectionner une personne', false, true);
+                return;
+            }
+
+            try {
+                updateStatus('Chargement de l\'arbre généalogique...', true);
+                const response = await fetch(`${API_BASE_URL}/relationships/person/${selectedPersonId}/family`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const familyData = await response.json();
+                currentFamilyData = familyData;
+                
+                updateStatus('Arbre chargé. Rendu en cours...', true);
+                setTimeout(() => {
+                    renderHierarchicalTree(familyData);
+                    updateStatus(`Arbre hiérarchique de ${familyData.person.fullName} (${familyData.totalFamilyMembers} membres)`);
+                }, 500);
+            } catch (error) {
+                updateStatus(`Erreur lors du chargement de l'arbre: ${error.message}`, false, true);
+            }
+        }
+
+        function buildHierarchicalTreeData(data) {
+            const nodes = [];
+            const links = [];
+
+            // Add main person (level 0)
+            const mainPerson = {
+                id: data.person.id,
+                name: data.person.fullName,
+                gender: data.person.gender,
+                isAlive: data.person.isAlive,
+                birthDate: data.person.birthDate,
+                deathDate: data.person.deathDate,
+                biography: data.person.biography,
+                type: 'main',
+                level: 0
+            };
+            nodes.push(mainPerson);
+
+            // Add parents (level 1)
+            data.parents.forEach(parent => {
+                const parentNode = {
+                    id: parent.id,
+                    name: parent.fullName,
+                    gender: parent.gender,
+                    isAlive: parent.isAlive,
+                    birthDate: parent.birthDate,
+                    deathDate: parent.deathDate,
+                    biography: parent.biography,
+                    type: 'parent',
+                    level: 1
+                };
+                nodes.push(parentNode);
+                links.push({
+                    source: parent.id,
+                    target: data.person.id,
+                    type: 'parent-child'
+                });
+            });
+
+            // Add siblings (level 0, same as main person)
+            data.siblings.forEach(sibling => {
+                const siblingNode = {
+                    id: sibling.id,
+                    name: sibling.fullName,
+                    gender: sibling.gender,
+                    isAlive: sibling.isAlive,
+                    birthDate: sibling.birthDate,
+                    deathDate: sibling.deathDate,
+                    biography: sibling.biography,
+                    type: 'sibling',
+                    level: 0
+                };
+                nodes.push(siblingNode);
+                links.push({
+                    source: data.person.id,
+                    target: sibling.id,
+                    type: 'sibling'
+                });
+            });
+
+            // Add spouse (level 0, same as main person)
+            if (data.spouse) {
+                const spouseNode = {
+                    id: data.spouse.id,
+                    name: data.spouse.fullName,
+                    gender: data.spouse.gender,
+                    isAlive: data.spouse.isAlive,
+                    birthDate: data.spouse.birthDate,
+                    deathDate: data.spouse.deathDate,
+                    biography: data.spouse.biography,
+                    type: 'spouse',
+                    level: 0
+                };
+                nodes.push(spouseNode);
+                links.push({
+                    source: data.person.id,
+                    target: data.spouse.id,
+                    type: 'marriage'
+                });
+            }
+
+            // Add children (level -1)
+            data.children.forEach(child => {
+                const childNode = {
+                    id: child.id,
+                    name: child.fullName,
+                    gender: child.gender,
+                    isAlive: child.isAlive,
+                    birthDate: child.birthDate,
+                    deathDate: child.deathDate,
+                    biography: child.biography,
+                    type: 'child',
+                    level: -1
+                };
+                nodes.push(childNode);
+                links.push({
+                    source: data.person.id,
+                    target: child.id,
+                    type: 'parent-child'
+                });
+            });
+
+            // Add grandparents (level 2)
+            data.grandparents.forEach(grandparent => {
+                const grandparentNode = {
+                    id: grandparent.id,
+                    name: grandparent.fullName,
+                    gender: grandparent.gender,
+                    isAlive: grandparent.isAlive,
+                    birthDate: grandparent.birthDate,
+                    deathDate: grandparent.deathDate,
+                    biography: grandparent.biography,
+                    type: 'grandparent',
+                    level: 2
+                };
+                nodes.push(grandparentNode);
+                
+                // Link to parents
+                data.parents.forEach(parent => {
+                    links.push({
+                        source: grandparent.id,
+                        target: parent.id,
+                        type: 'parent-child'
+                    });
+                });
+            });
+
+            // Add grandchildren (level -2)
+            data.grandchildren.forEach(grandchild => {
+                const grandchildNode = {
+                    id: grandchild.id,
+                    name: grandchild.fullName,
+                    gender: grandchild.gender,
+                    isAlive: grandchild.isAlive,
+                    birthDate: grandchild.birthDate,
+                    deathDate: grandchild.deathDate,
+                    biography: grandchild.biography,
+                    type: 'grandchild',
+                    level: -2
+                };
+                nodes.push(grandchildNode);
+                
+                // Link to children
+                data.children.forEach(child => {
+                    links.push({
+                        source: child.id,
+                        target: grandchild.id,
+                        type: 'parent-child'
+                    });
+                });
+            });
+
+            return { nodes, links };
+        }
+
+        function calculateHierarchicalPositions(nodes, width, height) {
+            const nodeWidth = 120;
+            const nodeHeight = 80;
+            const levelSpacing = 200;
+            const siblingSpacing = 150;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Group nodes by level
+            const nodesByLevel = new Map();
+            nodes.forEach(node => {
+                if (!nodesByLevel.has(node.level)) {
+                    nodesByLevel.set(node.level, []);
+                }
+                nodesByLevel.get(node.level).push(node);
+            });
+
+            // Calculate positions for each level
+            nodesByLevel.forEach((levelNodes, level) => {
+                const y = centerY + (level * levelSpacing);
+                const totalWidth = (levelNodes.length - 1) * siblingSpacing;
+                const startX = centerX - (totalWidth / 2);
+
+                levelNodes.forEach((node, index) => {
+                    node.x = startX + (index * siblingSpacing);
+                    node.y = y;
+                });
+            });
+
+            return nodes;
+        }
+
+        function renderHierarchicalTree(data) {
+            const svg = d3.select('#treeSvg');
+            const container = document.querySelector('.visualization-container');
+            const width = container.clientWidth - 40;
+            const height = 600;
+
+            // Clear previous content
+            svg.selectAll('*').remove();
+
+            // Set up zoom behavior
+            const zoomBehavior = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on('zoom', (event) => {
+                    currentZoom = event.transform;
+                    svg.select('g').attr('transform', event.transform);
+                });
+
+            svg.call(zoomBehavior);
+
+            // Create main group
+            const g = svg.append('g');
+
+            // Build tree data
+            const treeData = buildHierarchicalTreeData(data);
+            const { nodes, links } = treeData;
+
+            // Calculate positions
+            const positionedNodes = calculateHierarchicalPositions(nodes, width, height);
+
+            // Create links
+            const linkGroup = g.append('g').attr('class', 'links');
+            
+            links.forEach(link => {
+                const sourceNode = positionedNodes.find(n => n.id === link.source);
+                const targetNode = positionedNodes.find(n => n.id === link.target);
+                
+                if (sourceNode && targetNode && sourceNode.x !== undefined && sourceNode.y !== undefined && targetNode.x !== undefined && targetNode.y !== undefined) {
+                    linkGroup.append('line')
+                        .attr('x1', sourceNode.x)
+                        .attr('y1', sourceNode.y)
+                        .attr('x2', targetNode.x)
+                        .attr('y2', targetNode.y)
+                        .attr('class', `link ${link.type}`)
+                        .style('stroke', getLinkColor(link.type))
+                        .style('stroke-width', getLinkWidth(link.type))
+                        .style('stroke-dasharray', getLinkDashArray(link.type));
+                }
+            });
+
+            // Create nodes
+            const nodeGroup = g.append('g').attr('class', 'nodes');
+            
+            positionedNodes.forEach(node => {
+                if (node.x !== undefined && node.y !== undefined) {
+                    const nodeElement = nodeGroup.append('g')
+                        .attr('class', `node ${node.type}`)
+                        .attr('transform', `translate(${node.x}, ${node.y})`)
+                        .style('cursor', 'pointer');
+
+                    // Node circle
+                    nodeElement.append('circle')
+                        .attr('r', getNodeRadius(node.type))
+                        .style('fill', getNodeColor(node.gender, node.isAlive))
+                        .style('stroke', getNodeStroke(node.type))
+                        .style('stroke-width', getNodeStrokeWidth(node.type));
+
+                    // Node text
+                    nodeElement.append('text')
+                        .attr('text-anchor', 'middle')
+                        .attr('dy', getTextOffset(node.type))
+                        .style('font-size', getTextSize(node.type))
+                        .style('font-weight', node.type === 'main' ? 'bold' : 'normal')
+                        .style('fill', '#333')
+                        .text(node.name);
+
+                    // Add click handler
+                    nodeElement.on('click', () => {
+                        document.getElementById('personSelect').value = node.id;
+                        document.getElementById('loadTree').disabled = false;
+                    });
+
+                    // Add tooltip
+                    nodeElement.on('mouseover', function(event) {
+                        const tooltip = d3.select('body').append('div')
+                            .attr('class', 'tooltip')
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 10) + 'px')
+                            .html(`${node.name}<br/>${node.gender} • ${node.isAlive ? 'Vivant' : 'Décédé'}<br/>${node.birthDate ? `Né: ${node.birthDate}` : ''}<br/>${node.deathDate ? `Décédé: ${node.deathDate}` : ''}`);
+                    });
+
+                    nodeElement.on('mouseout', () => {
+                        d3.selectAll('.tooltip').remove();
+                    });
+                }
+            });
+
+            // Auto-center on main person
+            setTimeout(() => {
+                const mainNode = positionedNodes.find(n => n.type === 'main');
+                if (mainNode) {
+                    centerOnNode(mainNode, width, height, zoomBehavior, svg);
+                }
+            }, 500);
+        }
+
+        // Helper functions for styling
+        function getNodeRadius(type) {
+            switch (type) {
+                case 'main': return 25;
+                case 'parent': return 20;
+                case 'child': return 18;
+                case 'spouse': return 22;
+                case 'sibling': return 20;
+                case 'grandparent': return 18;
+                case 'grandchild': return 16;
+                default: return 20;
+            }
+        }
+
+        function getNodeColor(gender, isAlive) {
+            if (!isAlive) return '#ccc';
+            switch (gender) {
+                case 'Male': return '#4A90E2';
+                case 'Female': return '#E24A90';
+                default: return '#90E24A';
+            }
+        }
+
+        function getNodeStroke(type) {
+            return type === 'main' ? '#FFD700' : '#333';
+        }
+
+        function getNodeStrokeWidth(type) {
+            return type === 'main' ? 3 : 2;
+        }
+
+        function getTextSize(type) {
+            switch (type) {
+                case 'main': return '12px';
+                case 'parent': return '11px';
+                case 'child': return '10px';
+                case 'spouse': return '11px';
+                case 'sibling': return '11px';
+                case 'grandparent': return '10px';
+                case 'grandchild': return '9px';
+                default: return '11px';
+            }
+        }
+
+        function getTextOffset(type) {
+            switch (type) {
+                case 'main': return '35px';
+                case 'parent': return '30px';
+                case 'child': return '28px';
+                case 'spouse': return '32px';
+                case 'sibling': return '30px';
+                case 'grandparent': return '28px';
+                case 'grandchild': return '26px';
+                default: return '30px';
+            }
+        }
+
+        function getLinkColor(type) {
+            switch (type) {
+                case 'parent-child': return '#666';
+                case 'marriage': return '#E24A90';
+                case 'sibling': return '#4A90E2';
+                default: return '#666';
+            }
+        }
+
+        function getLinkWidth(type) {
+            switch (type) {
+                case 'parent-child': return 2;
+                case 'marriage': return 3;
+                case 'sibling': return 2;
+                default: return 2;
+            }
+        }
+
+        function getLinkDashArray(type) {
+            switch (type) {
+                case 'parent-child': return 'none';
+                case 'marriage': return '5,5';
+                case 'sibling': return 'none';
+                default: return 'none';
+            }
+        }
+
+        function centerOnNode(node, width, height, zoomBehavior, svg) {
+            if (node.x !== undefined && node.y !== undefined) {
+                const scale = 1.5;
+                const translateX = width / 2 - node.x * scale;
+                const translateY = height / 2 - node.y * scale;
+                
+                const transform = d3.zoomIdentity.translate(translateX, translateY).scale(scale);
+                svg.transition().duration(750).call(zoomBehavior.transform, transform);
+            }
+        }
+
+        function zoomIn() {
+            const svg = d3.select('#treeSvg');
+            svg.transition().duration(300).call(
+                d3.zoom().transform,
+                d3.zoomIdentity.scale(currentZoom.k * 1.5)
+            );
+        }
+
+        function zoomOut() {
+            const svg = d3.select('#treeSvg');
+            svg.transition().duration(300).call(
+                d3.zoom().transform,
+                d3.zoomIdentity.scale(currentZoom.k * 0.75)
+            );
+        }
+
+        function resetZoom() {
+            const svg = d3.select('#treeSvg');
+            svg.transition().duration(750).call(
+                d3.zoom().transform,
+                d3.zoomIdentity
+            );
+        }
+
+        function centerOnMain() {
+            if (currentFamilyData) {
+                const svg = d3.select('#treeSvg');
+                const container = document.querySelector('.visualization-container');
+                const width = container.clientWidth - 40;
+                const height = 600;
+                const zoomBehavior = d3.zoom();
+                
+                // Find main person and center on them
+                const mainPerson = currentFamilyData.person;
+                // This would need to be implemented based on the current node positions
+                // For now, just reset the view
+                resetZoom();
+            }
+        }
+
+        function updateStatus(message, loading = false, error = false) {
+            const statusElement = document.getElementById('status');
+            if (loading) {
+                statusElement.innerHTML = `<div class="loading"></div>${message}`;
+            } else if (error) {
+                statusElement.innerHTML = `<div class="error">${message}</div>`;
+            } else {
+                statusElement.innerHTML = message;
+            }
+        }
+    </script>
+</body>
+</html>

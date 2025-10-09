@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import { FamilyTree, Person, TreePine } from '@mui/icons-material';
 import TreeVisualization from './TreeVisualization';
+import HierarchicalTreeVisualization from './HierarchicalTreeVisualization';
 
 interface Person {
   id: number;
@@ -44,7 +45,7 @@ const TreeViewer: React.FC = () => {
   const [persons, setPersons] = useState<Person[]>([]);
   const [selectedPersonId, setSelectedPersonId] = useState<number | ''>('');
   const [familyData, setFamilyData] = useState<FamilyData | null>(null);
-  const [layout, setLayout] = useState<'vertical' | 'horizontal' | 'radial'>('vertical');
+  const [layout, setLayout] = useState<'vertical' | 'horizontal' | 'radial' | 'hierarchical'>('hierarchical');
   const [depth, setDepth] = useState<number>(3);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -104,6 +105,7 @@ const TreeViewer: React.FC = () => {
       case 'vertical': return <TreePine />;
       case 'horizontal': return <FamilyTree />;
       case 'radial': return <TreePine />;
+      case 'hierarchical': return <Person />;
       default: return <TreePine />;
     }
   };
@@ -113,6 +115,7 @@ const TreeViewer: React.FC = () => {
       case 'vertical': return 'Vertical';
       case 'horizontal': return 'Horizontal';
       case 'radial': return 'Radial';
+      case 'hierarchical': return 'Hiérarchique';
       default: return 'Vertical';
     }
   };
@@ -170,6 +173,12 @@ const TreeViewer: React.FC = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <TreePine />
                     Radial
+                  </Box>
+                </MenuItem>
+                <MenuItem value="hierarchical">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Person />
+                    Hiérarchique
                   </Box>
                 </MenuItem>
               </Select>
@@ -309,12 +318,21 @@ const TreeViewer: React.FC = () => {
       {/* Tree Visualization */}
       {familyData && (
         <Paper sx={{ height: '70vh', position: 'relative', overflow: 'hidden' }}>
-          <TreeVisualization
-            familyData={familyData}
-            layout={layout}
-            depth={depth}
-            onPersonClick={handlePersonClick}
-          />
+          {layout === 'hierarchical' ? (
+            <HierarchicalTreeVisualization
+              familyData={familyData}
+              layout={layout}
+              depth={depth}
+              onPersonClick={handlePersonClick}
+            />
+          ) : (
+            <TreeVisualization
+              familyData={familyData}
+              layout={layout}
+              depth={depth}
+              onPersonClick={handlePersonClick}
+            />
+          )}
         </Paper>
       )}
 

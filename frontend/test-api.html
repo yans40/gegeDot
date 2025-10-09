@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API GegeDot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .result {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test API GegeDot</h1>
+    
+    <button onclick="testPersons()">Test GET /api/persons</button>
+    <button onclick="testFamily()">Test GET /api/relationships/person/10/family</button>
+    <button onclick="clearResults()">Effacer</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api';
+        
+        function addResult(message, type = 'result') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testPersons() {
+            try {
+                addResult('🔄 Test de GET /api/persons...', 'result');
+                
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                addResult(`✅ Succès! ${data.length} personnes trouvées:`, 'success');
+                
+                data.slice(0, 5).forEach(person => {
+                    addResult(`  - ${person.fullName} (${person.gender}) - ID: ${person.id}`, 'result');
+                });
+                
+                if (data.length > 5) {
+                    addResult(`  ... et ${data.length - 5} autres personnes`, 'result');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Erreur: ${error.message}`, 'error');
+                console.error('Erreur détaillée:', error);
+            }
+        }
+        
+        async function testFamily() {
+            try {
+                addResult('🔄 Test de GET /api/relationships/person/10/family...', 'result');
+                
+                const response = await fetch(`${API_BASE_URL}/relationships/person/10/family`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                addResult(`✅ Succès! Famille de ${data.person.fullName}:`, 'success');
+                addResult(`  - Parents: ${data.parents.length}`, 'result');
+                addResult(`  - Enfants: ${data.children.length}`, 'result');
+                addResult(`  - Frères/Sœurs: ${data.siblings.length}`, 'result');
+                addResult(`  - Grands-parents: ${data.grandparents.length}`, 'result');
+                addResult(`  - Petits-enfants: ${data.grandchildren.length}`, 'result');
+                addResult(`  - Total: ${data.totalFamilyMembers} membres`, 'result');
+                
+            } catch (error) {
+                addResult(`❌ Erreur: ${error.message}`, 'error');
+                console.error('Erreur détaillée:', error);
+            }
+        }
+        
+        // Test automatique au chargement
+        window.addEventListener('load', () => {
+            addResult('🚀 Page chargée. Cliquez sur les boutons pour tester l\'API.', 'result');
+        });
+    </script>
+</body>
+</html>
