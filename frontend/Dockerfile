@@ -6,11 +6,15 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (use npm install to work without package-lock.json)
+RUN npm install
 
 # Copy source code
 COPY . .
+
+# Build-time API URL for CRA
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 # Build the app
 RUN npm run build

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GegeDot - Test Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .person-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .person-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 18px;
+        }
+        .person-details {
+            color: #666;
+            margin-top: 5px;
+        }
+        .gender-male { color: #2196F3; }
+        .gender-female { color: #E91E63; }
+        .gender-other { color: #9C27B0; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .error {
+            color: #f44336;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #4caf50;
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .loading {
+            color: #ff9800;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌳 GegeDot - Test Frontend</h1>
+        <p>Test de connexion à l'API backend</p>
+        
+        <div>
+            <button onclick="loadPersons()">Charger les personnes</button>
+            <button onclick="createTestPerson()">Créer une personne test</button>
+            <button onclick="clearResults()">Effacer</button>
+        </div>
+        
+        <div id="status"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('status').innerHTML = '';
+        }
+        
+        async function loadPersons() {
+            showStatus('Chargement des personnes...', 'loading');
+            
+            try {
+                const response = await fetch(`${API_BASE}/persons`);
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                
+                const persons = await response.json();
+                displayPersons(persons);
+                showStatus(`✅ ${persons.length} personnes chargées avec succès`, 'success');
+                
+            } catch (error) {
+                showStatus(`❌ Erreur: ${error.message}`, 'error');
+                console.error('Erreur:', error);
+            }
+        }
+        
+        function displayPersons(persons) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (persons.length === 0) {
+                resultsDiv.innerHTML = '<p>Aucune personne trouvée.</p>';
+                return;
+            }
+            
+            const html = persons.map(person => `
+                <div class="person-card">
+                    <div class="person-name">${person.fullName || `${person.firstName} ${person.lastName}`}</div>
+                    <div class="person-details">
+                        <span class="gender-${person.gender.toLowerCase()}">${person.gender}</span>
+                        ${person.birthDate ? ` • Né(e) le ${new Date(person.birthDate).toLocaleDateString('fr-FR')}` : ''}
+                        ${person.birthPlace ? ` • ${person.birthPlace}` : ''}
+                        ${person.age ? ` • ${person.age} ans` : ''}
+                    </div>
+                    ${person.biography ? `<div style="margin-top: 8px; font-style: italic;">${person.biography}</div>` : ''}
+                </div>
+            `).join('');
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        async function createTestPerson() {
+            showStatus('Création d\'une personne test...', 'loading');
+            
+            const testPerson = {
+                firstName: 'Test',
+                lastName: 'Frontend',
+                gender: 'Other',
+                birthDate: '1990-01-01',
+                birthPlace: 'Test City',
+                biography: 'Personne créée depuis le frontend de test'
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/persons`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testPerson)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                
+                const newPerson = await response.json();
+                showStatus(`✅ Personne créée avec succès: ${newPerson.fullName} (ID: ${newPerson.id})`, 'success');
+                
+                // Recharger la liste
+                setTimeout(loadPersons, 1000);
+                
+            } catch (error) {
+                showStatus(`❌ Erreur lors de la création: ${error.message}`, 'error');
+                console.error('Erreur:', error);
+            }
+        }
+        
+        // Charger automatiquement les personnes au chargement de la page
+        window.onload = function() {
+            showStatus('Page chargée. Cliquez sur "Charger les personnes" pour tester l\'API.', 'info');
+        };
+    </script>
+</body>
+</html>

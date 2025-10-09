@@ -41,19 +41,21 @@ services:
       - ./backend:/app
     command: dotnet watch run --urls="http://+:5000"
 
-  # Frontend React (commenté pour l'instant)
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: gegeDot-frontend
-  #   ports:
-  #     - "3000:80"
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - gegeDot-network
-  #   restart: unless-stopped
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://localhost:5000/api
+    container_name: gegeDot-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - gegeDot-network
+    restart: unless-stopped
 
   # phpMyAdmin pour gérer la base de données (optionnel)
   phpmyadmin:
