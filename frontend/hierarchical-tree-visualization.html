@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GegeDot - Visualisation Hiérarchique v3.2 (Niveaux Corrigés)</title>
+    <title>GegeDot - Visualisation Hiérarchique v3.8 (Zoom Robuste + Messages)</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -29,7 +29,7 @@
             margin-bottom: 30px;
             flex-wrap: wrap;
             gap: 10px;
-        }
+        } 
         
         .controls button {
             padding: 12px 20px;
@@ -79,14 +79,39 @@
         
         .legend {
             position: fixed;
-            top: 20px;
-            left: 20px;
+            bottom: 20px;
+            right: 20px;
             background: white;
             padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             z-index: 1000;
-            max-width: 200px;
+            max-width: 220px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .legend-section {
+            margin-bottom: 15px;
+        }
+        
+        .legend-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .legend-section h4 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .legend-section p {
+            margin: 0;
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
         }
         
         .legend h3 {
@@ -149,12 +174,16 @@
         
         .zoom-controls {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            bottom: 20px;
+            left: 20px;
             z-index: 1000;
             display: flex;
-            flex-direction: column;
-            gap: 5px;
+            gap: 8px;
+            background: white;
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border: 1px solid #e0e0e0;
         }
         
         .zoom-controls button {
@@ -250,6 +279,7 @@
         </div>
         <button id="loadTree" disabled>Charger l'arbre hiérarchique</button>
         <button id="refreshData">Actualiser</button>
+        <a href="person-management.html" style="text-decoration: none; display: inline-block; padding: 10px 20px; background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%); color: white; border-radius: 8px; font-weight: 600; transition: all 0.3s ease; border: none; cursor: pointer;">👥 Gérer les personnes</a>
     </div>
 
     <div class="zoom-controls">
@@ -260,35 +290,32 @@
     </div>
 
     <div class="legend">
-        <h3>Légende</h3>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #4A90E2;"></div>
-            <span>Homme</span>
+        <h3>🎨 Légende</h3>
+        <div class="legend-section">
+            <h4>Personnes</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4A90E2;"></div>
+                <span>Homme</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #E24A90;"></div>
+                <span>Femme</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ccc;"></div>
+                <span>Décédé</span>
+            </div>
         </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #E24A90;"></div>
-            <span>Femme</span>
+        <div class="legend-section">
+            <h4>Relations (au survol)</h4>
+            <div class="legend-item">
+                <div class="legend-line" style="background-color: #333;"></div>
+                <span>Parent-Enfant</span>
+            </div>
         </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #90E24A;"></div>
-            <span>Autre</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #ccc;"></div>
-            <span>Décédé</span>
-        </div>
-        <h3>Relations</h3>
-        <div class="legend-item">
-            <div class="legend-line" style="background-color: #666;"></div>
-            <span>Parent-Enfant</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-line" style="background-color: #E24A90;"></div>
-            <span>Mariage</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-line" style="background-color: #4A90E2;"></div>
-            <span>Frères/Sœurs</span>
+        <div class="legend-section">
+            <h4>💡 Astuce</h4>
+            <p>Survolez un nœud pour voir ses relations</p>
         </div>
     </div>
 
@@ -300,13 +327,13 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'http://localhost:5000/api';
+        const API_BASE_URL = 'http://localhost:5001/api';
         let currentFamilyData = null;
         let currentZoom = d3.zoomIdentity;
 
         // Load persons on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Initializing hierarchical tree visualization v3.2 (Fixed Levels) - ' + new Date().toISOString());
+            console.log('Initializing hierarchical tree visualization v3.8 (Robust Zoom + Messages) - ' + new Date().toISOString());
             loadPersons();
             setupEventListeners();
         });
@@ -319,10 +346,22 @@
 
             document.getElementById('loadTree').addEventListener('click', loadFamilyTree);
             document.getElementById('refreshData').addEventListener('click', loadPersons);
-            document.getElementById('zoomIn').addEventListener('click', zoomIn);
-            document.getElementById('zoomOut').addEventListener('click', zoomOut);
-            document.getElementById('resetZoom').addEventListener('click', resetZoom);
-            document.getElementById('centerMain').addEventListener('click', centerOnMain);
+            document.getElementById('zoomIn').addEventListener('click', function() {
+                console.log('Zoom In clicked');
+                zoomIn();
+            });
+            document.getElementById('zoomOut').addEventListener('click', function() {
+                console.log('Zoom Out clicked');
+                zoomOut();
+            });
+            document.getElementById('resetZoom').addEventListener('click', function() {
+                console.log('Reset Zoom clicked');
+                resetZoom();
+            });
+            document.getElementById('centerMain').addEventListener('click', function() {
+                console.log('Center Main clicked');
+                centerOnMain();
+            });
         }
 
         async function loadPersons() {
@@ -845,43 +884,141 @@
         }
 
         function zoomIn() {
+            console.log('Zoom In function called');
+            if (!currentFamilyData) {
+                console.log('No tree loaded yet');
+                updateStatus('Veuillez d\'abord charger un arbre généalogique', false, true);
+                return;
+            }
+            
             const svg = d3.select('#treeSvg');
+            if (svg.empty()) {
+                console.log('SVG not found');
+                updateStatus('Erreur: SVG non trouvé', false, true);
+                return;
+            }
+            
+            const currentTransform = d3.zoomTransform(svg.node());
+            const newScale = Math.min(currentTransform.k * 1.5, 4);
+            console.log('Current scale:', currentTransform.k, 'New scale:', newScale);
+            
             svg.transition().duration(300).call(
                 d3.zoom().transform,
-                d3.zoomIdentity.scale(currentZoom.k * 1.5)
+                d3.zoomIdentity.scale(newScale)
             );
+            
+            updateStatus(`Zoom: ${newScale.toFixed(1)}x`);
         }
 
         function zoomOut() {
+            console.log('Zoom Out function called');
+            if (!currentFamilyData) {
+                console.log('No tree loaded yet');
+                updateStatus('Veuillez d\'abord charger un arbre généalogique', false, true);
+                return;
+            }
+            
             const svg = d3.select('#treeSvg');
+            if (svg.empty()) {
+                console.log('SVG not found');
+                updateStatus('Erreur: SVG non trouvé', false, true);
+                return;
+            }
+            
+            const currentTransform = d3.zoomTransform(svg.node());
+            const newScale = Math.max(currentTransform.k * 0.75, 0.1);
+            console.log('Current scale:', currentTransform.k, 'New scale:', newScale);
+            
             svg.transition().duration(300).call(
                 d3.zoom().transform,
-                d3.zoomIdentity.scale(currentZoom.k * 0.75)
+                d3.zoomIdentity.scale(newScale)
             );
+            
+            updateStatus(`Zoom: ${newScale.toFixed(1)}x`);
         }
 
         function resetZoom() {
+            console.log('Reset Zoom function called');
+            if (!currentFamilyData) {
+                console.log('No tree loaded yet');
+                updateStatus('Veuillez d\'abord charger un arbre généalogique', false, true);
+                return;
+            }
+            
             const svg = d3.select('#treeSvg');
+            if (svg.empty()) {
+                console.log('SVG not found');
+                updateStatus('Erreur: SVG non trouvé', false, true);
+                return;
+            }
+            
             svg.transition().duration(750).call(
                 d3.zoom().transform,
                 d3.zoomIdentity
             );
+            
+            updateStatus('Zoom réinitialisé');
         }
 
         function centerOnMain() {
-            if (currentFamilyData) {
-                const svg = d3.select('#treeSvg');
-                const container = document.querySelector('.visualization-container');
-                const width = container.clientWidth - 40;
-                const height = 600;
-                const zoomBehavior = d3.zoom();
-                
-                // Find main person and center on them
-                const mainPerson = currentFamilyData.person;
-                // This would need to be implemented based on the current node positions
-                // For now, just reset the view
-                resetZoom();
+            console.log('Center Main function called');
+            if (!currentFamilyData) {
+                console.log('No tree loaded yet');
+                updateStatus('Veuillez d\'abord charger un arbre généalogique', false, true);
+                return;
             }
+            
+            const svg = d3.select('#treeSvg');
+            if (svg.empty()) {
+                console.log('SVG not found');
+                updateStatus('Erreur: SVG non trouvé', false, true);
+                return;
+            }
+            
+            const container = document.querySelector('.visualization-container');
+            if (!container) {
+                console.log('Container not found');
+                updateStatus('Erreur: Container non trouvé', false, true);
+                return;
+            }
+            
+            const width = container.clientWidth - 40;
+            const height = 600;
+            
+            // Find the main person node in the SVG
+            const mainNode = svg.select('.node.main');
+            if (!mainNode.empty()) {
+                const nodeElement = mainNode.node();
+                const transform = d3.zoomTransform(svg.node());
+                
+                // Get the current position of the main node
+                const transformAttr = nodeElement.getAttribute('transform');
+                if (transformAttr) {
+                    const match = transformAttr.match(/translate\(([^,]+),([^)]+)\)/);
+                    if (match) {
+                        const nodeX = parseFloat(match[1]);
+                        const nodeY = parseFloat(match[2]);
+                        
+                        // Calculate the translation needed to center the node
+                        const translateX = (width / 2) - (nodeX * transform.k);
+                        const translateY = (height / 2) - (nodeY * transform.k);
+                        
+                        // Apply the transformation
+                        const newTransform = d3.zoomIdentity.translate(translateX, translateY).scale(transform.k);
+                        svg.transition().duration(750).call(
+                            d3.zoom().transform,
+                            newTransform
+                        );
+                        
+                        updateStatus('Centré sur la personne principale');
+                        return;
+                    }
+                }
+            }
+            
+            // Fallback: just reset zoom
+            console.log('Main node not found, resetting zoom');
+            resetZoom();
         }
 
         function updateStatus(message, loading = false, error = false) {
