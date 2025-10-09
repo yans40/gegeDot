@@ -35,3 +35,4 @@ public class UpdateRelationshipDto
     public string? Notes { get; set; }
     public bool IsActive { get; set; } = true;
 }
+

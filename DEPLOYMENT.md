@@ -271,3 +271,4 @@ pscale db dump gegeDot main --output backup.sql
 - [PlanetScale Documentation](https://planetscale.com/docs)
 - [Docker Documentation](https://docs.docker.com/)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
+

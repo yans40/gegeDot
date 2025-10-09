@@ -22,3 +22,4 @@ public class Tree
     // Navigation properties
     public virtual Person? RootPerson { get; set; }
 }
+

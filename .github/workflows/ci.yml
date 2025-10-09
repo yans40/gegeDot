@@ -219,3 +219,4 @@ jobs:
           - 📚 [Documentation API](https://gegedot-backend.railway.app/swagger)
         draft: false
         prerelease: false
+

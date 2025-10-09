@@ -27,3 +27,4 @@ public class UpdateTreeDto
     public int? RootPersonId { get; set; }
     public bool IsPublic { get; set; } = false;
 }
+

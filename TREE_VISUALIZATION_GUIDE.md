@@ -245,3 +245,4 @@ La visualisation des arbres généalogiques est maintenant pleinement fonctionne
 - ✅ **Données royales** intégrées pour démonstration
 
 **L'application est prête pour la démonstration et les tests utilisateurs !** 🌳
+

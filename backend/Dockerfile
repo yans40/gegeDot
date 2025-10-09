@@ -37,3 +37,4 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 
 # Point d'entrée
 ENTRYPOINT ["dotnet", "GegeDot.API.dll"]
+

@@ -27,3 +27,4 @@ public interface IRelationshipService
     Task<bool> AddSpouseRelationshipAsync(int person1Id, int person2Id);
     Task<bool> RemoveRelationshipAsync(int person1Id, int person2Id, int relationshipType);
 }
+

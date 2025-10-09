@@ -75,3 +75,4 @@ FROM Relationships r
 JOIN Persons p1 ON r.Person1Id = p1.Id
 JOIN Persons p2 ON r.Person2Id = p2.Id
 ORDER BY r.RelationshipType, r.StartDate;
+

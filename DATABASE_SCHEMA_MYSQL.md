@@ -363,3 +363,4 @@ Si tu veux migrer plus tard vers PostgreSQL, voici les principales différences 
 | Timestamps | `TIMESTAMP` | `TIMESTAMP` |
 
 MySQL est parfait pour commencer et apprendre ! 🚀
+

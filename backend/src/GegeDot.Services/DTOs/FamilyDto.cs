@@ -13,3 +13,4 @@ public class FamilyDto
     public int TotalFamilyMembers => 1 + Parents.Count + Children.Count + Siblings.Count + 
                                    (Spouse != null ? 1 : 0) + Grandparents.Count + Grandchildren.Count;
 }
+

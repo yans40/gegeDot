@@ -105,3 +105,4 @@ Quand vous ouvrez http://localhost:3001/test.html, vous devriez voir :
 ---
 
 **Le projet GegeDot fonctionne parfaitement en local ! 🎯**
+

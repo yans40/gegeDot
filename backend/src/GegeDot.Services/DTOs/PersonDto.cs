@@ -49,3 +49,4 @@ public class UpdatePersonDto
     public string Gender { get; set; } = "M";
     public bool IsAlive { get; set; } = true;
 }
+

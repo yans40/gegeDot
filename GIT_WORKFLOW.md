@@ -173,3 +173,4 @@ docs(readme): update installation instructions
 ---
 
 **Ce workflow garantit un développement professionnel et sécurisé ! 🚀**
+

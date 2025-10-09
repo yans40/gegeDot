@@ -68,3 +68,4 @@ jobs:
       run: |
         docker-compose -f docker-compose.yml down -v
         docker system prune -f
+
