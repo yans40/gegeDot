@@ -90,4 +90,107 @@ public class RelationshipRepository : IRelationshipRepository
                            (r.Person1Id == person2Id && r.Person2Id == person1Id)) &&
                           r.RelationshipType == type);
     }
+
+    public async Task<Relationship?> GetByPersonsAndTypeAsync(int person1Id, int person2Id, RelationshipType type)
+    {
+        return await _context.Relationships
+            .Include(r => r.Person1)
+            .Include(r => r.Person2)
+            .FirstOrDefaultAsync(r => ((r.Person1Id == person1Id && r.Person2Id == person2Id) ||
+                                      (r.Person1Id == person2Id && r.Person2Id == person1Id)) &&
+                                     r.RelationshipType == type);
+    }
+
+    public async Task<IEnumerable<Person>> GetParentsAsync(int personId)
+    {
+        var parentRelationships = await _context.Relationships
+            .Where(r => r.Person2Id == personId && r.RelationshipType == RelationshipType.Parent)
+            .Include(r => r.Person1)
+            .ToListAsync();
+
+        return parentRelationships.Select(r => r.Person1);
+    }
+
+    public async Task<IEnumerable<Person>> GetChildrenAsync(int personId)
+    {
+        var childRelationships = await _context.Relationships
+            .Where(r => r.Person1Id == personId && r.RelationshipType == RelationshipType.Parent)
+            .Include(r => r.Person2)
+            .ToListAsync();
+
+        return childRelationships.Select(r => r.Person2);
+    }
+
+    public async Task<IEnumerable<Person>> GetSiblingsAsync(int personId)
+    {
+        // Récupérer les parents de la personne
+        var parents = await GetParentsAsync(personId);
+        var parentIds = parents.Select(p => p.Id).ToList();
+
+        if (!parentIds.Any())
+            return new List<Person>();
+
+        // Récupérer tous les enfants de ces parents (sauf la personne elle-même)
+        var siblingRelationships = await _context.Relationships
+            .Where(r => parentIds.Contains(r.Person1Id) && 
+                       r.RelationshipType == RelationshipType.Parent &&
+                       r.Person2Id != personId)
+            .Include(r => r.Person2)
+            .ToListAsync();
+
+        return siblingRelationships.Select(r => r.Person2).Distinct();
+    }
+
+    public async Task<Person?> GetSpouseAsync(int personId)
+    {
+        var spouseRelationship = await _context.Relationships
+            .Where(r => (r.Person1Id == personId || r.Person2Id == personId) && 
+                       r.RelationshipType == RelationshipType.Spouse)
+            .Include(r => r.Person1)
+            .Include(r => r.Person2)
+            .FirstOrDefaultAsync();
+
+        if (spouseRelationship == null)
+            return null;
+
+        return spouseRelationship.Person1Id == personId ? spouseRelationship.Person2 : spouseRelationship.Person1;
+    }
+
+    public async Task<IEnumerable<Person>> GetGrandparentsAsync(int personId)
+    {
+        var parents = await GetParentsAsync(personId);
+        var grandparentIds = new List<int>();
+
+        foreach (var parent in parents)
+        {
+            var parentParents = await GetParentsAsync(parent.Id);
+            grandparentIds.AddRange(parentParents.Select(p => p.Id));
+        }
+
+        if (!grandparentIds.Any())
+            return new List<Person>();
+
+        return await _context.Persons
+            .Where(p => grandparentIds.Contains(p.Id))
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Person>> GetGrandchildrenAsync(int personId)
+    {
+        var children = await GetChildrenAsync(personId);
+        var grandchildIds = new List<int>();
+
+        foreach (var child in children)
+        {
+            var childChildren = await GetChildrenAsync(child.Id);
+            grandchildIds.AddRange(childChildren.Select(c => c.Id));
+        }
+
+        if (!grandchildIds.Any())
+            return new List<Person>();
+
+        return await _context.Persons
+            .Where(p => grandchildIds.Contains(p.Id))
+            .ToListAsync();
+    }
 }
