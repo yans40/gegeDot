@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS Persons (
     DeathPlace VARCHAR(200),
     PhotoUrl VARCHAR(500),
     Biography TEXT,
-    Gender ENUM('M', 'F', 'O') DEFAULT 'M',
+    Gender ENUM('Male', 'Female', 'Other') DEFAULT 'Other',
     IsAlive BOOLEAN DEFAULT TRUE,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

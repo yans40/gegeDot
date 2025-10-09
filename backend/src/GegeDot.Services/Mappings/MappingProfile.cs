@@ -21,8 +21,8 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.RelationshipsAsPerson1, opt => opt.Ignore())
             .ForMember(dest => dest.RelationshipsAsPerson2, opt => opt.Ignore())
             .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => 
-                src.Gender == "M" ? Gender.Male : 
-                src.Gender == "F" ? Gender.Female : Gender.Other));
+                src.Gender == "Male" ? Gender.Male : 
+                src.Gender == "Female" ? Gender.Female : Gender.Other));
 
         CreateMap<UpdatePersonDto, Person>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -31,8 +31,8 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.RelationshipsAsPerson1, opt => opt.Ignore())
             .ForMember(dest => dest.RelationshipsAsPerson2, opt => opt.Ignore())
             .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => 
-                src.Gender == "M" ? Gender.Male : 
-                src.Gender == "F" ? Gender.Female : Gender.Other));
+                src.Gender == "Male" ? Gender.Male : 
+                src.Gender == "Female" ? Gender.Female : Gender.Other));
 
         // Relationship mappings
         CreateMap<Relationship, RelationshipDto>()
