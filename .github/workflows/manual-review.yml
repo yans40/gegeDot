@@ -1,0 +1,221 @@
+name: Manual Code Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      review_scope:
+        description: 'Scope de la revue'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+        - full
+        - backend
+        - frontend
+        - security
+        - performance
+      priority:
+        description: 'Priorité de la revue'
+        required: true
+        default: 'medium'
+        type: choice
+        options:
+        - low
+        - medium
+        - high
+        - critical
+      assignee:
+        description: 'Assigner à (username GitHub)'
+        required: false
+        type: string
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  NODE_VERSION: '18'
+
+jobs:
+  manual-review:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create review issue
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const scope = '${{ github.event.inputs.review_scope }}';
+          const priority = '${{ github.event.inputs.priority }}';
+          const assignee = '${{ github.event.inputs.assignee }}';
+          
+          let title = `🔍 Manual Code Review - ${scope.charAt(0).toUpperCase() + scope.slice(1)}`;
+          let labels = ['review', 'manual', priority];
+          
+          if (scope === 'backend') {
+            labels.push('backend');
+          } else if (scope === 'frontend') {
+            labels.push('frontend');
+          } else if (scope === 'security') {
+            labels.push('security');
+          } else if (scope === 'performance') {
+            labels.push('performance');
+          }
+          
+          let body = `## 🔍 Manual Code Review Request
+          
+**Scope**: ${scope.charAt(0).toUpperCase() + scope.slice(1)}
+**Priority**: ${priority.charAt(0).toUpperCase() + priority.slice(1)}
+**Requested by**: @${{ github.actor }}
+**Date**: ${new Date().toISOString().split('T')[0]}
+
+## 📋 Review Checklist
+
+### ${scope === 'full' || scope === 'backend' ? '🏗️ Backend Review' : ''}
+${scope === 'full' || scope === 'backend' ? `
+- [ ] **Architecture**: Clean Architecture respectée
+- [ ] **Code Quality**: SOLID principles, naming conventions
+- [ ] **Security**: Input validation, SQL injection protection
+- [ ] **Performance**: Database queries, async/await
+- [ ] **Tests**: Unit tests, integration tests
+- [ ] **Documentation**: XML comments, API docs
+` : ''}
+
+### ${scope === 'full' || scope === 'frontend' ? '🎨 Frontend Review' : ''}
+${scope === 'full' || scope === 'frontend' ? `
+- [ ] **Code Quality**: JavaScript best practices, CSS organization
+- [ ] **Performance**: Bundle size, loading time, rendering
+- [ ] **Accessibility**: WCAG standards, keyboard navigation
+- [ ] **Responsive**: Mobile/desktop compatibility
+- [ ] **UX**: User experience, navigation, feedback
+- [ ] **Browser Support**: Cross-browser compatibility
+` : ''}
+
+### ${scope === 'full' || scope === 'security' ? '🔒 Security Review' : ''}
+${scope === 'full' || scope === 'security' ? `
+- [ ] **Input Validation**: All inputs validated
+- [ ] **Authentication**: User authentication (if applicable)
+- [ ] **Authorization**: Access control
+- [ ] **Data Protection**: Sensitive data handling
+- [ ] **Dependencies**: Security vulnerabilities
+- [ ] **Configuration**: Secure configuration
+` : ''}
+
+### ${scope === 'full' || scope === 'performance' ? '⚡ Performance Review' : ''}
+${scope === 'full' || scope === 'performance' ? `
+- [ ] **Backend**: Response time, database queries
+- [ ] **Frontend**: Loading time, bundle size
+- [ ] **Database**: Query optimization, indexing
+- [ ] **Caching**: Appropriate caching strategy
+- [ ] **Monitoring**: Performance monitoring
+- [ ] **Scalability**: Architecture scalability
+` : ''}
+
+## 📊 Review Criteria
+
+### Scoring (1-5)
+- **1**: Poor - Needs major refactoring
+- **2**: Below Average - Significant improvements needed
+- **3**: Average - Some improvements needed
+- **4**: Good - Minor improvements needed
+- **5**: Excellent - Production ready
+
+### Areas to Score
+- [ ] **Code Quality**: ___/5
+- [ ] **Architecture**: ___/5
+- [ ] **Security**: ___/5
+- [ ] **Performance**: ___/5
+- [ ] **Documentation**: ___/5
+- [ ] **Tests**: ___/5
+
+**Overall Score**: ___/5
+
+## 📝 Review Notes
+
+### Strengths
+- 
+
+### Areas for Improvement
+- 
+
+### Recommendations
+- 
+
+### Action Items
+- [ ] 
+- [ ] 
+- [ ] 
+
+## 🔗 Resources
+
+- [Code Review Checklist](./CODE_REVIEW_CHECKLIST.md)
+- [Project Status Review](./PROJECT_STATUS_REVIEW.md)
+- [Issues Action Plan](./ISSUES_ACTION_PLAN.md)
+
+---
+
+**Reviewer**: ${assignee ? `@${assignee}` : 'To be assigned'}
+**Deadline**: To be defined
+**Status**: 🔄 In Progress`;
+
+          const issue = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: labels,
+            assignees: assignee ? [assignee] : []
+          });
+          
+          console.log(`Created review issue: ${issue.data.html_url}`);
+
+    - name: Comment on issue
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const scope = '${{ github.event.inputs.review_scope }}';
+          const priority = '${{ github.event.inputs.priority }}';
+          
+          let comment = `## 🤖 Automated Review Setup
+          
+**Review Type**: ${scope.charAt(0).toUpperCase() + scope.slice(1)}
+**Priority**: ${priority.charAt(0).toUpperCase() + priority.slice(1)}
+
+### 📋 Next Steps
+1. **Assign Reviewer**: Assign this issue to the appropriate reviewer
+2. **Set Deadline**: Define a deadline for the review
+3. **Begin Review**: Use the checklist above to conduct the review
+4. **Update Status**: Update the issue status as you progress
+
+### 🔗 Useful Links
+- [Code Review Checklist](./CODE_REVIEW_CHECKLIST.md)
+- [Project Status Review](./PROJECT_STATUS_REVIEW.md)
+- [Issues Action Plan](./ISSUES_ACTION_PLAN.md)
+
+### 📊 Review Tools
+- **Backend**: SonarQube, CodeQL, Snyk
+- **Frontend**: Lighthouse, ESLint, Prettier
+- **Security**: Trivy, CodeQL, Snyk
+- **Performance**: Lighthouse, WebPageTest
+
+---
+**🤖 This issue was created automatically by GitHub Actions**`;
+
+          // Get the issue number from the previous step
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            sort: 'created',
+            direction: 'desc',
+            per_page: 1
+          });
+          
+          if (issues.data.length > 0) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issues.data[0].number,
+              body: comment
+            });
+          }
