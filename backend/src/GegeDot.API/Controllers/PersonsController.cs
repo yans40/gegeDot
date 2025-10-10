@@ -161,7 +161,20 @@ public class PersonsController : ControllerBase
         try
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                
+                _logger.LogWarning("Validation failed for CreatePersonDto: {Errors}", string.Join(", ", errors.SelectMany(e => e.Value)));
+                return BadRequest(new { message = "Données invalides", errors = errors });
+            }
+
+            _logger.LogInformation("Creating person: {FirstName} {LastName}, Gender: {Gender}", 
+                createPersonDto.FirstName, createPersonDto.LastName, createPersonDto.Gender);
 
             var person = await _personService.CreatePersonAsync(createPersonDto);
             return CreatedAtAction(nameof(GetPerson), new { id = person.Id }, person);
@@ -177,18 +190,31 @@ public class PersonsController : ControllerBase
     /// Met à jour une personne existante
     /// </summary>
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdatePerson(int id, UpdatePersonDto updatePersonDto)
+    public async Task<ActionResult<PersonDto>> UpdatePerson(int id, UpdatePersonDto updatePersonDto)
     {
         try
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                
+                _logger.LogWarning("Validation failed for UpdatePersonDto: {Errors}", string.Join(", ", errors.SelectMany(e => e.Value)));
+                return BadRequest(new { message = "Données invalides", errors = errors });
+            }
 
             if (!await _personService.PersonExistsAsync(id))
                 return NotFound($"Personne avec l'ID {id} non trouvée");
 
-            await _personService.UpdatePersonAsync(id, updatePersonDto);
-            return NoContent();
+            _logger.LogInformation("Updating person {PersonId}: {FirstName} {LastName}, Gender: {Gender}", 
+                id, updatePersonDto.FirstName, updatePersonDto.LastName, updatePersonDto.Gender);
+
+            var updatedPerson = await _personService.UpdatePersonAsync(id, updatePersonDto);
+            return Ok(updatedPerson);
         }
         catch (Exception ex)
         {

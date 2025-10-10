@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GegeDot - Visualisation Hiérarchique v3.8 (Zoom Robuste + Messages)</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        } 
+        
+        .controls button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .controls button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .person-selector {
+            margin-bottom: 20px;
+        }
+        
+        .person-selector select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        
+        .visualization-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 600px;
+            position: relative;
+        }
+        
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            max-width: 220px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .legend-section {
+            margin-bottom: 15px;
+        }
+        
+        .legend-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .legend-section h4 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .legend-section p {
+            margin: 0;
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
+        }
+        
+        .legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .legend-line {
+            width: 20px;
+            height: 2px;
+            margin-right: 8px;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #e74c3c;
+            background-color: #fdf2f2;
+            border: 1px solid #fecaca;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .zoom-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border: 1px solid #e0e0e0;
+        }
+        
+        .zoom-controls button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .zoom-controls button:hover {
+            background: #f0f0f0;
+        }
+        
+        /* SVG Styles */
+        .node circle {
+            cursor: pointer;
+            stroke-width: 2px;
+        }
+        
+        .node.main circle {
+            stroke: #FFD700;
+            stroke-width: 3px;
+        }
+        
+        .node text {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 11px;
+            text-anchor: middle;
+            pointer-events: none;
+            fill: #333;
+        }
+        
+        .node.main text {
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .link {
+            fill: none;
+            stroke-width: 4px;
+            stroke-opacity: 0;
+            transition: stroke-opacity 0.3s ease;
+        }
+        
+        .link.visible {
+            stroke-opacity: 0.8;
+        }
+        
+        .link.parent-child {
+            stroke: #333;
+        }
+        
+        .link.marriage {
+            stroke: #E24A90;
+            stroke-dasharray: 5,5;
+        }
+        
+        .link.sibling {
+            stroke: #4A90E2;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 10000;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌳 GegeDot - Visualisation Hiérarchique</h1>
+        <p>Layout organisé par niveaux générationnels</p>
+    </div>
+
+    <div class="controls">
+        <div class="person-selector">
+            <select id="personSelect">
+                <option value="">-- Choisir une personne --</option>
+            </select>
+        </div>
+        <button id="loadTree" disabled>Charger l'arbre hiérarchique</button>
+        <button id="refreshData">Actualiser</button>
+        <a href="person-management.html" style="text-decoration: none; display: inline-block; padding: 10px 20px; background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%); color: white; border-radius: 8px; font-weight: 600; transition: all 0.3s ease; border: none; cursor: pointer;">👥 Gérer les personnes</a>
+    </div>
+
+    <div class="zoom-controls">
+        <button id="zoomIn" title="Zoom avant">+</button>
+        <button id="zoomOut" title="Zoom arrière">-</button>
+        <button id="resetZoom" title="Réinitialiser">⌂</button>
+        <button id="centerMain" title="Centrer sur la personne principale">◎</button>
+    </div>
+
+    <div class="legend">
+        <h3>🎨 Légende</h3>
+        <div class="legend-section">
+            <h4>Personnes</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4A90E2;"></div>
+                <span>Homme</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #E24A90;"></div>
+                <span>Femme</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ccc;"></div>
+                <span>Décédé</span>
+            </div>
+        </div>
+        <div class="legend-section">
+            <h4>Relations (au survol)</h4>
+            <div class="legend-item">
+                <div class="legend-line" style="background-color: #333;"></div>
+                <span>Parent-Enfant</span>
+            </div>
+        </div>
+        <div class="legend-section">
+            <h4>💡 Astuce</h4>
+            <p>Survolez un nœud pour voir ses relations</p>
+        </div>
+    </div>
+
+    <div class="visualization-container">
+        <div id="status" class="status">
+            Sélectionnez une personne pour visualiser son arbre généalogique hiérarchique
+        </div>
+        <svg id="treeSvg" width="100%" height="600"></svg>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        let currentFamilyData = null;
+        let currentZoom = d3.zoomIdentity;
+
+        // Load persons on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing hierarchical tree visualization v3.8 (Robust Zoom + Messages) - ' + new Date().toISOString());
+            loadPersons();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('personSelect').addEventListener('change', function() {
+                const loadButton = document.getElementById('loadTree');
+                loadButton.disabled = !this.value;
+            });
+
+            document.getElementById('loadTree').addEventListener('click', loadFamilyTree);
+            document.getElementById('refreshData').addEventListener('click', loadPersons);
+            document.getElementById('zoomIn').addEventListener('click', function() {
+                console.log('Zoom In clicked');
+                zoomIn();
+            });
+            document.getElementById('zoomOut').addEventListener('click', function() {
+                console.log('Zoom Out clicked');
+                zoomOut();
+            });
+            document.getElementById('resetZoom').addEventListener('click', function() {
+                console.log('Reset Zoom clicked');
+                resetZoom();
+            });
+            document.getElementById('centerMain').addEventListener('click', function() {
+                console.log('Center Main clicked');
+                centerOnMain();
+            });
+        }
+
+        async function loadPersons() {
+            try {
+                updateStatus('Chargement des personnes...', true);
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const persons = await response.json();
+                
+                const select = document.getElementById('personSelect');
+                select.innerHTML = '<option value="">-- Choisir une personne --</option>';
+                persons.forEach(person => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.fullName} (${person.gender})`;
+                    select.appendChild(option);
+                });
+                
+                updateStatus('Personnes chargées. Sélectionnez une personne pour visualiser son arbre.');
+            } catch (error) {
+                updateStatus(`Erreur lors du chargement des personnes: ${error.message}`, false, true);
+            }
+        }
+
+        async function loadFamilyTree() {
+            const selectedPersonId = document.getElementById('personSelect').value;
+            if (!selectedPersonId) {
+                updateStatus('Veuillez sélectionner une personne', false, true);
+                return;
+            }
+
+            try {
+                updateStatus('Chargement de l\'arbre généalogique...', true);
+                const response = await fetch(`${API_BASE_URL}/relationships/person/${selectedPersonId}/family`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const familyData = await response.json();
+                currentFamilyData = familyData;
+                
+                updateStatus('Arbre chargé. Rendu en cours...', true);
+                setTimeout(() => {
+                    renderHierarchicalTree(familyData);
+                    updateStatus(`Arbre hiérarchique de ${familyData.person.fullName} (${familyData.totalFamilyMembers} membres)`);
+                }, 500);
+            } catch (error) {
+                updateStatus(`Erreur lors du chargement de l'arbre: ${error.message}`, false, true);
+            }
+        }
+
+        function buildHierarchicalTreeData(data) {
+            const nodes = [];
+            const links = [];
+
+            // Add main person (level 0)
+            const mainPerson = {
+                id: data.person.id,
+                name: data.person.fullName,
+                gender: data.person.gender,
+                isAlive: data.person.isAlive,
+                birthDate: data.person.birthDate,
+                deathDate: data.person.deathDate,
+                biography: data.person.biography,
+                type: 'main',
+                level: 0
+            };
+            nodes.push(mainPerson);
+
+            // Add parents (level 1)
+            data.parents.forEach(parent => {
+                const parentNode = {
+                    id: parent.id,
+                    name: parent.fullName,
+                    gender: parent.gender,
+                    isAlive: parent.isAlive,
+                    birthDate: parent.birthDate,
+                    deathDate: parent.deathDate,
+                    biography: parent.biography,
+                    type: 'parent',
+                    level: -1
+                };
+                nodes.push(parentNode);
+            });
+            
+            // Add clean vertical links from parents to center of children
+            if (data.parents.length > 0) {
+                data.parents.forEach(parent => {
+                    // Link each parent to the main person (center of children)
+                    links.push({
+                        source: parent.id,
+                        target: data.person.id,
+                        type: 'parent-child'
+                    });
+                });
+            }
+
+            // Add siblings (level 0, same as main person)
+            data.siblings.forEach(sibling => {
+                const siblingNode = {
+                    id: sibling.id,
+                    name: sibling.fullName,
+                    gender: sibling.gender,
+                    isAlive: sibling.isAlive,
+                    birthDate: sibling.birthDate,
+                    deathDate: sibling.deathDate,
+                    biography: sibling.biography,
+                    type: 'sibling',
+                    level: 0
+                };
+                nodes.push(siblingNode);
+                
+                // Add links between siblings and parents (not between siblings)
+                data.parents.forEach(parent => {
+                    links.push({
+                        source: parent.id,
+                        target: sibling.id,
+                        type: 'parent-child'
+                    });
+                });
+            });
+
+            // Add spouse (level 0, same as main person)
+            if (data.spouse) {
+                const spouseNode = {
+                    id: data.spouse.id,
+                    name: data.spouse.fullName,
+                    gender: data.spouse.gender,
+                    isAlive: data.spouse.isAlive,
+                    birthDate: data.spouse.birthDate,
+                    deathDate: data.spouse.deathDate,
+                    biography: data.spouse.biography,
+                    type: 'spouse',
+                    level: 0
+                };
+                nodes.push(spouseNode);
+                links.push({
+                    source: data.person.id,
+                    target: data.spouse.id,
+                    type: 'marriage'
+                });
+            }
+
+            // Add children (level -1)
+            data.children.forEach(child => {
+                const childNode = {
+                    id: child.id,
+                    name: child.fullName,
+                    gender: child.gender,
+                    isAlive: child.isAlive,
+                    birthDate: child.birthDate,
+                    deathDate: child.deathDate,
+                    biography: child.biography,
+                    type: 'child',
+                    level: 1
+                };
+                nodes.push(childNode);
+                links.push({
+                    source: data.person.id,
+                    target: child.id,
+                    type: 'parent-child'
+                });
+            });
+
+            // Add grandparents (level 2)
+            data.grandparents.forEach(grandparent => {
+                const grandparentNode = {
+                    id: grandparent.id,
+                    name: grandparent.fullName,
+                    gender: grandparent.gender,
+                    isAlive: grandparent.isAlive,
+                    birthDate: grandparent.birthDate,
+                    deathDate: grandparent.deathDate,
+                    biography: grandparent.biography,
+                    type: 'grandparent',
+                    level: -2
+                };
+                nodes.push(grandparentNode);
+            });
+            
+            // Add clean vertical links from grandparents to center of parents
+            if (data.grandparents.length > 0 && data.parents.length > 0) {
+                data.grandparents.forEach(grandparent => {
+                    // Link each grandparent to the first parent (center of parents)
+                    links.push({
+                        source: grandparent.id,
+                        target: data.parents[0].id,
+                        type: 'parent-child'
+                    });
+                });
+            }
+
+            // Add grandchildren (level -2)
+            data.grandchildren.forEach(grandchild => {
+                const grandchildNode = {
+                    id: grandchild.id,
+                    name: grandchild.fullName,
+                    gender: grandchild.gender,
+                    isAlive: grandchild.isAlive,
+                    birthDate: grandchild.birthDate,
+                    deathDate: grandchild.deathDate,
+                    biography: grandchild.biography,
+                    type: 'grandchild',
+                    level: 2
+                };
+                nodes.push(grandchildNode);
+            });
+            
+            // Add clean vertical links from children to center of grandchildren
+            if (data.children.length > 0 && data.grandchildren.length > 0) {
+                data.children.forEach(child => {
+                    // Link each child to the first grandchild (center of grandchildren)
+                    links.push({
+                        source: child.id,
+                        target: data.grandchildren[0].id,
+                        type: 'parent-child'
+                    });
+                });
+            }
+
+            return { nodes, links };
+        }
+
+        function calculateHierarchicalPositions(nodes, width, height) {
+            const nodeWidth = 120;
+            const nodeHeight = 80;
+            const levelSpacing = 200;
+            const siblingSpacing = 150;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Group nodes by level
+            const nodesByLevel = new Map();
+            nodes.forEach(node => {
+                if (!nodesByLevel.has(node.level)) {
+                    nodesByLevel.set(node.level, []);
+                }
+                nodesByLevel.get(node.level).push(node);
+            });
+
+            // First pass: calculate positions for all levels except parents
+            const sortedLevels = Array.from(nodesByLevel.keys()).sort((a, b) => a - b);
+            
+            sortedLevels.forEach(level => {
+                if (level !== -1) { // Skip parents for now
+                    const levelNodes = nodesByLevel.get(level);
+                    // Level 0 (main person) at centerY, level 1 (children) below, level -1 (parents) above
+                    let y;
+                    if (level > 0) {
+                        // Children and grandchildren should be below the main person
+                        y = centerY + (level * levelSpacing);
+                    } else {
+                        // Parents and grandparents should be above the main person
+                        y = centerY + (level * levelSpacing);
+                    }
+                    
+                    const totalWidth = (levelNodes.length - 1) * siblingSpacing;
+                    const startX = centerX - (totalWidth / 2);
+
+                    levelNodes.forEach((node, index) => {
+                        node.x = startX + (index * siblingSpacing);
+                        node.y = y;
+                    });
+                }
+            });
+            
+            // Second pass: calculate positions for parents (level -1) based on their children
+            if (nodesByLevel.has(-1)) {
+                const parentNodes = nodesByLevel.get(-1);
+                // Parents should be ABOVE children, so y should be smaller (level -1 = above level 0)
+                const y = centerY - levelSpacing; // Above the main person
+                
+                // Find the main person and their siblings to center parents above them
+                const mainPerson = nodes.find(n => n.type === 'main');
+                const siblings = nodes.filter(n => n.type === 'sibling' && n.level === 0);
+                const allLevel0Nodes = [mainPerson, ...siblings].filter(Boolean);
+                
+                if (allLevel0Nodes.length > 0 && allLevel0Nodes.every(node => node.x !== undefined)) {
+                    // Calculate the center of level 0 nodes
+                    const level0CenterX = allLevel0Nodes.reduce((sum, node) => sum + (node.x || 0), 0) / allLevel0Nodes.length;
+                    
+                    // Position parents centered above their children
+                    const totalWidth = (parentNodes.length - 1) * siblingSpacing;
+                    const startX = level0CenterX - (totalWidth / 2);
+                    
+                    parentNodes.forEach((node, index) => {
+                        node.x = startX + (index * siblingSpacing);
+                        node.y = y;
+                    });
+                } else {
+                    // Fallback to center positioning
+                    const totalWidth = (parentNodes.length - 1) * siblingSpacing;
+                    const startX = centerX - (totalWidth / 2);
+                    
+                    parentNodes.forEach((node, index) => {
+                        node.x = startX + (index * siblingSpacing);
+                        node.y = y;
+                    });
+                }
+            }
+
+            return nodes;
+        }
+
+        function renderHierarchicalTree(data) {
+            const svg = d3.select('#treeSvg');
+            const container = document.querySelector('.visualization-container');
+            const width = container.clientWidth - 40;
+            const height = 600;
+
+            // Clear previous content
+            svg.selectAll('*').remove();
+
+            // Set up zoom behavior
+            const zoomBehavior = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on('zoom', (event) => {
+                    currentZoom = event.transform;
+                    svg.select('g').attr('transform', event.transform);
+                });
+
+            svg.call(zoomBehavior);
+
+            // Create main group
+            const g = svg.append('g');
+
+            // Build tree data
+            const treeData = buildHierarchicalTreeData(data);
+            const { nodes, links } = treeData;
+
+            // Calculate positions
+            const positionedNodes = calculateHierarchicalPositions(nodes, width, height);
+
+            // Create links
+            const linkGroup = g.append('g').attr('class', 'links');
+            
+            links.forEach(link => {
+                const sourceNode = positionedNodes.find(n => n.id === link.source);
+                const targetNode = positionedNodes.find(n => n.id === link.target);
+                
+                if (sourceNode && targetNode && sourceNode.x !== undefined && sourceNode.y !== undefined && targetNode.x !== undefined && targetNode.y !== undefined) {
+                    linkGroup.append('line')
+                        .attr('x1', sourceNode.x)
+                        .attr('y1', sourceNode.y)
+                        .attr('x2', targetNode.x)
+                        .attr('y2', targetNode.y)
+                        .attr('class', `link ${link.type}`)
+                        .attr('data-source', sourceNode.id)
+                        .attr('data-target', targetNode.id)
+                        .style('stroke', getLinkColor(link.type))
+                        .style('stroke-width', getLinkWidth(link.type))
+                        .style('stroke-dasharray', getLinkDashArray(link.type));
+                }
+            });
+
+            // Create nodes
+            const nodeGroup = g.append('g').attr('class', 'nodes');
+            
+            positionedNodes.forEach(node => {
+                if (node.x !== undefined && node.y !== undefined) {
+                    const nodeElement = nodeGroup.append('g')
+                        .attr('class', `node ${node.type}`)
+                        .attr('transform', `translate(${node.x}, ${node.y})`)
+                        .style('cursor', 'pointer');
+
+                    // Node circle
+                    nodeElement.append('circle')
+                        .attr('r', getNodeRadius(node.type))
+                        .style('fill', getNodeColor(node.gender, node.isAlive))
+                        .style('stroke', getNodeStroke(node.type))
+                        .style('stroke-width', getNodeStrokeWidth(node.type));
+
+                    // Node text
+                    nodeElement.append('text')
+                        .attr('text-anchor', 'middle')
+                        .attr('dy', getTextOffset(node.type))
+                        .style('font-size', getTextSize(node.type))
+                        .style('font-weight', node.type === 'main' ? 'bold' : 'normal')
+                        .style('fill', '#333')
+                        .text(node.name);
+
+                    // Add click handler
+                    nodeElement.on('click', () => {
+                        document.getElementById('personSelect').value = node.id;
+                        document.getElementById('loadTree').disabled = false;
+                    });
+
+                    // Add tooltip and show links on hover
+                    nodeElement.on('mouseover', function(event) {
+                        // Show tooltip
+                        const tooltip = d3.select('body').append('div')
+                            .attr('class', 'tooltip')
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 10) + 'px')
+                            .html(`${node.name}<br/>${node.gender} • ${node.isAlive ? 'Vivant' : 'Décédé'}<br/>${node.birthDate ? `Né: ${node.birthDate}` : ''}<br/>${node.deathDate ? `Décédé: ${node.deathDate}` : ''}`);
+                        
+                        // Show links connected to this node
+                        d3.selectAll('.link')
+                            .filter(function() {
+                                const sourceId = d3.select(this).attr('data-source');
+                                const targetId = d3.select(this).attr('data-target');
+                                return sourceId == node.id || targetId == node.id;
+                            })
+                            .classed('visible', true);
+                    });
+
+                    nodeElement.on('mouseout', () => {
+                        // Hide tooltip
+                        d3.selectAll('.tooltip').remove();
+                        
+                        // Hide all links
+                        d3.selectAll('.link').classed('visible', false);
+                    });
+                }
+            });
+
+            // Auto-center on main person
+            setTimeout(() => {
+                const mainNode = positionedNodes.find(n => n.type === 'main');
+                if (mainNode) {
+                    centerOnNode(mainNode, width, height, zoomBehavior, svg);
+                }
+            }, 500);
+        }
+
+        // Helper functions for styling
+        function getNodeRadius(type) {
+            switch (type) {
+                case 'main': return 25;
+                case 'parent': return 20;
+                case 'child': return 18;
+                case 'spouse': return 22;
+                case 'sibling': return 20;
+                case 'grandparent': return 18;
+                case 'grandchild': return 16;
+                default: return 20;
+            }
+        }
+
+        function getNodeColor(gender, isAlive) {
+            if (!isAlive) return '#ccc';
+            switch (gender) {
+                case 'Male': return '#4A90E2';
+                case 'Female': return '#E24A90';
+                default: return '#90E24A';
+            }
+        }
+
+        function getNodeStroke(type) {
+            return type === 'main' ? '#FFD700' : '#333';
+        }
+
+        function getNodeStrokeWidth(type) {
+            return type === 'main' ? 3 : 2;
+        }
+
+        function getTextSize(type) {
+            switch (type) {
+                case 'main': return '12px';
+                case 'parent': return '11px';
+                case 'child': return '10px';
+                case 'spouse': return '11px';
+                case 'sibling': return '11px';
+                case 'grandparent': return '10px';
+                case 'grandchild': return '9px';
+                default: return '11px';
+            }
+        }
+
+        function getTextOffset(type) {
+            switch (type) {
+                case 'main': return '35px';
+                case 'parent': return '30px';
+                case 'child': return '28px';
+                case 'spouse': return '32px';
+                case 'sibling': return '30px';
+                case 'grandparent': return '28px';
+                case 'grandchild': return '26px';
+                default: return '30px';
+            }
+        }
+
+        function getLinkColor(type) {
+            switch (type) {
+                case 'parent-child': return '#666';
+                case 'marriage': return '#E24A90';
+                case 'sibling': return '#4A90E2';
+                default: return '#666';
+            }
+        }
+
+        function getLinkWidth(type) {
+            switch (type) {
+                case 'parent-child': return 2;
+                case 'marriage': return 3;
+                case 'sibling': return 2;
+                default: return 2;
+            }
+        }
+
+        function getLinkDashArray(type) {
+            switch (type) {
+                case 'parent-child': return 'none';
+                case 'marriage': return '5,5';
+                case 'sibling': return 'none';
+                default: return 'none';
+            }
+        }
+
+        function centerOnNode(node, width, height, zoomBehavior, svg) {
+            if (node.x !== undefined && node.y !== undefined) {
+                const scale = 1.5;
+                const translateX = width / 2 - node.x * scale;
+                const translateY = height / 2 - node.y * scale;
+                
+                const transform = d3.zoomIdentity.translate(translateX, translateY).scale(scale);
+                svg.transition().duration(750).call(zoomBehavior.transform, transform);
+            }
+        }
+
+        function zoomIn() {
+            console.log('Zoom In function called');
+            if (!currentFamilyData) {
+                console.log('No tree loaded yet');
+                updateStatus('Veuillez d\'abord charger un arbre généalogique', false, true);
+                return;
+            }
+            
+            const svg = d3.select('#treeSvg');
+            if (svg.empty()) {
+                console.log('SVG not found');
+                updateStatus('Erreur: SVG non trouvé', false, true);
+                return;
+            }
+            
+            const currentTransform = d3.zoomTransform(svg.node());
+            const newScale = Math.min(currentTransform.k * 1.5, 4);
+            console.log('Current scale:', currentTransform.k, 'New scale:', newScale);
+            
+            svg.transition().duration(300).call(
+                d3.zoom().transform,
+                d3.zoomIdentity.scale(newScale)
+            );
+            
+            updateStatus(`Zoom: ${newScale.toFixed(1)}x`);
+        }
+
+        function zoomOut() {
+            console.log('Zoom Out function called');
+            if (!currentFamilyData) {
+                console.log('No tree loaded yet');
+                updateStatus('Veuillez d\'abord charger un arbre généalogique', false, true);
+                return;
+            }
+            
+            const svg = d3.select('#treeSvg');
+            if (svg.empty()) {
+                console.log('SVG not found');
+                updateStatus('Erreur: SVG non trouvé', false, true);
+                return;
+            }
+            
+            const currentTransform = d3.zoomTransform(svg.node());
+            const newScale = Math.max(currentTransform.k * 0.75, 0.1);
+            console.log('Current scale:', currentTransform.k, 'New scale:', newScale);
+            
+            svg.transition().duration(300).call(
+                d3.zoom().transform,
+                d3.zoomIdentity.scale(newScale)
+            );
+            
+            updateStatus(`Zoom: ${newScale.toFixed(1)}x`);
+        }
+
+        function resetZoom() {
+            console.log('Reset Zoom function called');
+            if (!currentFamilyData) {
+                console.log('No tree loaded yet');
+                updateStatus('Veuillez d\'abord charger un arbre généalogique', false, true);
+                return;
+            }
+            
+            const svg = d3.select('#treeSvg');
+            if (svg.empty()) {
+                console.log('SVG not found');
+                updateStatus('Erreur: SVG non trouvé', false, true);
+                return;
+            }
+            
+            svg.transition().duration(750).call(
+                d3.zoom().transform,
+                d3.zoomIdentity
+            );
+            
+            updateStatus('Zoom réinitialisé');
+        }
+
+        function centerOnMain() {
+            console.log('Center Main function called');
+            if (!currentFamilyData) {
+                console.log('No tree loaded yet');
+                updateStatus('Veuillez d\'abord charger un arbre généalogique', false, true);
+                return;
+            }
+            
+            const svg = d3.select('#treeSvg');
+            if (svg.empty()) {
+                console.log('SVG not found');
+                updateStatus('Erreur: SVG non trouvé', false, true);
+                return;
+            }
+            
+            const container = document.querySelector('.visualization-container');
+            if (!container) {
+                console.log('Container not found');
+                updateStatus('Erreur: Container non trouvé', false, true);
+                return;
+            }
+            
+            const width = container.clientWidth - 40;
+            const height = 600;
+            
+            // Find the main person node in the SVG
+            const mainNode = svg.select('.node.main');
+            if (!mainNode.empty()) {
+                const nodeElement = mainNode.node();
+                const transform = d3.zoomTransform(svg.node());
+                
+                // Get the current position of the main node
+                const transformAttr = nodeElement.getAttribute('transform');
+                if (transformAttr) {
+                    const match = transformAttr.match(/translate\(([^,]+),([^)]+)\)/);
+                    if (match) {
+                        const nodeX = parseFloat(match[1]);
+                        const nodeY = parseFloat(match[2]);
+                        
+                        // Calculate the translation needed to center the node
+                        const translateX = (width / 2) - (nodeX * transform.k);
+                        const translateY = (height / 2) - (nodeY * transform.k);
+                        
+                        // Apply the transformation
+                        const newTransform = d3.zoomIdentity.translate(translateX, translateY).scale(transform.k);
+                        svg.transition().duration(750).call(
+                            d3.zoom().transform,
+                            newTransform
+                        );
+                        
+                        updateStatus('Centré sur la personne principale');
+                        return;
+                    }
+                }
+            }
+            
+            // Fallback: just reset zoom
+            console.log('Main node not found, resetting zoom');
+            resetZoom();
+        }
+
+        function updateStatus(message, loading = false, error = false) {
+            const statusElement = document.getElementById('status');
+            if (loading) {
+                statusElement.innerHTML = `<div class="loading"></div>${message}`;
+            } else if (error) {
+                statusElement.innerHTML = `<div class="error">${message}</div>`;
+            } else {
+                statusElement.innerHTML = message;
+            }
+        }
+    </script>
+</body>
+</html>
