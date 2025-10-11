@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GegeDot - Visualisation Hiérarchique Beta - FIXED</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        } 
+        
+        .controls button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .controls button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .person-selector {
+            margin-bottom: 20px;
+        }
+        
+        .person-selector select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        
+        .visualization-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 600px;
+            position: relative;
+        }
+        
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            max-width: 220px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .legend-section {
+            margin-bottom: 15px;
+        }
+        
+        .legend-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .legend h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 2px solid #333;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.loading {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status.success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        
+        .status.error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        
+        .link {
+            stroke-opacity: 0;
+            stroke-width: 2;
+            transition: stroke-opacity 0.3s ease;
+        }
+        
+        .link.visible {
+            stroke-opacity: 0.8;
+        }
+        
+        .node {
+            cursor: pointer;
+        }
+        
+        .node circle {
+            stroke-width: 3;
+        }
+        
+        .node text {
+            font-size: 11px;
+            font-weight: 500;
+            fill: #333;
+            text-anchor: middle;
+        }
+        
+        #tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 250px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌳 GegeDot - Visualisation Hiérarchique Beta</h1>
+        <p>Version FIXED - Liens au survol fonctionnels</p>
+    </div>
+
+    <div class="controls">
+        <div class="person-selector">
+            <select id="personSelect" onchange="updateLoadButton()">
+                <option value="">Sélectionner une personne...</option>
+            </select>
+        </div>
+        <button id="loadTree" onclick="loadFamilyTree()" disabled>Charger l'arbre familial</button>
+        <button onclick="loadPersons()">Actualiser la liste</button>
+    </div>
+
+    <div id="status" class="status" style="display: none;"></div>
+
+    <div class="visualization-container">
+        <svg id="treeSvg" width="100%" height="600"></svg>
+        <div id="tooltip"></div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-section">
+            <h4>👥 Personnes</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #F39C12; border: 2px solid #E67E22;"></div>
+                <span>Personne principale</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4A90E2;"></div>
+                <span>Homme</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #E24A90;"></div>
+                <span>Femme</span>
+            </div>
+        </div>
+        <div class="legend-section">
+            <h4>🔗 Relations</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4A90E2; height: 2px; border-radius: 0;"></div>
+                <span>Parent-Enfant</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #E24A90; height: 2px; border-radius: 0;"></div>
+                <span>Mariage</span>
+            </div>
+        </div>
+        <div class="legend-section">
+            <h4>💡 Interaction</h4>
+            <div class="legend-item">
+                <span>Survolez une personne pour voir ses liens familiaux</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        let currentFamilyData = null;
+
+        async function loadPersons() {
+            try {
+                updateStatus('Chargement des personnes...', true);
+                console.log('🔍 Début du chargement des personnes...');
+                
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                console.log('📡 Réponse reçue:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const persons = await response.json();
+                console.log('👥 Personnes reçues:', persons.length, 'personnes');
+                
+                const select = document.getElementById('personSelect');
+                select.innerHTML = '<option value="">Sélectionner une personne...</option>';
+                
+                persons.forEach(person => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.fullName} (${person.gender})`;
+                    select.appendChild(option);
+                });
+                
+                updateStatus(`${persons.length} personnes chargées avec succès`, false, false, true);
+            } catch (error) {
+                console.error('❌ Erreur lors du chargement des personnes:', error);
+                updateStatus(`Erreur lors du chargement des personnes: ${error.message}`, false, true);
+            }
+        }
+
+        async function loadFamilyTree() {
+            const selectedPersonId = document.getElementById('personSelect').value;
+            if (!selectedPersonId) {
+                updateStatus('Veuillez sélectionner une personne', false, true);
+                return;
+            }
+
+            try {
+                updateStatus('Chargement de l\'arbre familial...', true);
+                console.log('🌳 Chargement de l\'arbre pour la personne ID:', selectedPersonId);
+
+                const response = await fetch(`${API_BASE_URL}/persons/${selectedPersonId}/family`);
+                console.log('📡 Réponse famille:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const familyData = await response.json();
+                console.log('👨‍👩‍👧‍👦 Données familiales reçues:', familyData);
+
+                currentFamilyData = familyData;
+                renderTree(familyData);
+                
+                const stats = familyData.familyStats;
+                const statusMessage = `Arbre familial chargé pour ${familyData.person.fullName} - ${stats.totalMembers} membres`;
+                updateStatus(statusMessage, false, false, true);
+            } catch (error) {
+                console.error('❌ Erreur lors du chargement de l\'arbre familial:', error);
+                updateStatus(`Erreur lors du chargement de l'arbre familial: ${error.message}`, false, true);
+            }
+        }
+
+        function renderTree(data) {
+            const svg = d3.select('#treeSvg');
+            svg.selectAll('*').remove();
+
+            const width = svg.node().getBoundingClientRect().width;
+            const height = 600;
+
+            svg.attr('width', width).attr('height', height);
+
+            const g = svg.append('g');
+
+            // Créer une structure avec tous les membres de la famille
+            const treeData = buildTreeData(data);
+            console.log('🌳 Structure familiale créée:', treeData);
+
+            // Create hierarchical layout (comme la branche hierarchical-layout)
+            const positionedNodes = calculateHierarchicalPositions(treeData.nodes, width, height);
+
+            // Create links - LOGIQUE SIMPLIFIÉE COMME LE TEST
+            const link = g.selectAll('.link')
+                .data(treeData.links)
+                .enter().append('line')
+                .attr('class', 'link')
+                .attr('data-source', d => d.source.id || d.source)
+                .attr('data-target', d => d.target.id || d.target)
+                .attr('x1', d => {
+                    const sourceNode = positionedNodes.find(n => n.id === (d.source.id || d.source));
+                    return sourceNode ? sourceNode.x : 0;
+                })
+                .attr('y1', d => {
+                    const sourceNode = positionedNodes.find(n => n.id === (d.source.id || d.source));
+                    return sourceNode ? sourceNode.y : 0;
+                })
+                .attr('x2', d => {
+                    const targetNode = positionedNodes.find(n => n.id === (d.target.id || d.target));
+                    return targetNode ? targetNode.x : 0;
+                })
+                .attr('y2', d => {
+                    const targetNode = positionedNodes.find(n => n.id === (d.target.id || d.target));
+                    return targetNode ? targetNode.y : 0;
+                })
+                .attr('stroke-width', 2)
+                .attr('stroke', d => {
+                    switch(d.type) {
+                        case 'parent-child': return '#4A90E2';
+                        case 'marriage': return '#E24A90';
+                        default: return '#999';
+                    }
+                })
+                .style('stroke-opacity', 0); // Invisible par défaut
+
+            console.log('🔗 Liens créés:', link.size());
+
+            // Create nodes
+            const node = g.selectAll('.node')
+                .data(positionedNodes)
+                .enter().append('g')
+                .attr('class', d => `node ${d.gender?.toLowerCase() || 'other'} ${!d.isAlive ? 'deceased' : ''} ${d.type}`)
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+
+            // Add circles with different sizes based on type
+            node.append('circle')
+                .attr('r', d => {
+                    switch(d.type) {
+                        case 'main': return 15;
+                        case 'parent': return 12;
+                        case 'child': return 12;
+                        case 'sibling': return 10;
+                        default: return 10;
+                    }
+                })
+                .attr('fill', d => {
+                    if (d.type === 'main') return '#F39C12';
+                    return d.gender === 'Male' ? '#4A90E2' : '#E24A90';
+                })
+                .attr('stroke', d => {
+                    if (d.type === 'main') return '#E67E22';
+                    return d.gender === 'Male' ? '#2C5F8B' : '#B83A73';
+                })
+                .attr('stroke-width', d => d.type === 'main' ? 4 : 3)
+                .attr('opacity', d => !d.isAlive ? 0.6 : 1);
+
+            // Add text
+            node.append('text')
+                .attr('dy', 4)
+                .attr('x', 0)
+                .style('text-anchor', 'middle')
+                .style('font-size', '11px')
+                .style('font-weight', '500')
+                .style('fill', '#333')
+                .text(d => d.name);
+
+            // Add tooltips and highlight links on hover - LOGIQUE DU TEST QUI FONCTIONNE
+            node.on('mouseover', function(event, d) {
+                console.log('🔄 Survol de:', d.name, 'ID:', d.id);
+                
+                // Show connected links using data attributes - EXACTEMENT COMME LE TEST
+                const connectedLinks = d3.selectAll('.link')
+                    .filter(function() {
+                        const sourceId = d3.select(this).attr('data-source');
+                        const targetId = d3.select(this).attr('data-target');
+                        const isConnected = sourceId == d.id || targetId == d.id;
+                        console.log(`🔍 Lien ${sourceId} -> ${targetId}: ${isConnected ? 'CONNECTÉ' : 'non connecté'} (survol: ${d.id})`);
+                        return isConnected;
+                    });
+                
+                console.log('🎯 Liens connectés trouvés:', connectedLinks.size());
+                connectedLinks.style('stroke-opacity', 0.8);
+
+                // Highlight connected nodes
+                node.style('opacity', n => {
+                    const isConnected = (n.id === d.id || 
+                        treeData.links.some(l => {
+                            const sourceId = l.source.id || l.source;
+                            const targetId = l.target.id || l.target;
+                            return (sourceId === d.id && targetId === n.id) ||
+                                   (targetId === d.id && sourceId === n.id);
+                        }));
+                    return isConnected ? 1 : 0.3;
+                });
+
+                const tooltip = d3.select('#tooltip');
+                const connectedPersons = treeData.links
+                    .filter(l => {
+                        const sourceId = l.source.id || l.source;
+                        const targetId = l.target.id || l.target;
+                        return sourceId === d.id || targetId === d.id;
+                    })
+                    .map(l => {
+                        const sourceId = l.source.id || l.source;
+                        return sourceId === d.id ? l.target : l.source;
+                    })
+                    .map(n => n.name || n);
+
+                tooltip.style('display', 'block')
+                    .html(`
+                        <h3>${d.name}</h3>
+                        <p><strong>Genre:</strong> ${d.gender || 'Non spécifié'}</p>
+                        <p><strong>Né(e):</strong> ${d.birthDate ? new Date(d.birthDate).toLocaleDateString() : 'Non spécifié'}</p>
+                        ${d.deathDate ? `<p><strong>Décédé(e):</strong> ${new Date(d.deathDate).toLocaleDateString()}</p>` : ''}
+                        <p><strong>Statut:</strong> ${d.isAlive ? 'Vivant(e)' : 'Décédé(e)'}</p>
+                        ${connectedPersons.length > 0 ? `<p><strong>Liens familiaux:</strong> ${connectedPersons.join(', ')}</p>` : ''}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+            })
+            .on('mouseout', function() {
+                console.log('👋 Fin du survol');
+                
+                // Hide all links and reset node opacity - EXACTEMENT COMME LE TEST
+                d3.selectAll('.link').style('stroke-opacity', 0);
+                node.style('opacity', 1);
+                d3.select('#tooltip').style('display', 'none');
+            });
+
+            // Setup zoom
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 3])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+        }
+
+        function calculateHierarchicalPositions(nodes, width, height) {
+            const nodeWidth = 120;
+            const nodeHeight = 80;
+            const levelSpacing = 200;
+            const siblingSpacing = 150;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Group nodes by type (generation)
+            const nodesByType = new Map();
+            nodes.forEach(node => {
+                if (!nodesByType.has(node.type)) {
+                    nodesByType.set(node.type, []);
+                }
+                nodesByType.get(node.type).push(node);
+            });
+
+            // Position each type of node
+            const sortedTypes = ['grandparent', 'parent', 'main', 'sibling', 'child'];
+            
+            sortedTypes.forEach((type, index) => {
+                const typeNodes = nodesByType.get(type) || [];
+                if (typeNodes.length === 0) return;
+
+                // Calculate Y position based on type
+                let y;
+                switch(type) {
+                    case 'grandparent': y = centerY - (2 * levelSpacing); break;
+                    case 'parent': y = centerY - levelSpacing; break;
+                    case 'main': 
+                    case 'sibling': y = centerY; break;
+                    case 'child': y = centerY + levelSpacing; break;
+                    default: y = centerY;
+                }
+
+                // Calculate X positions (centered)
+                const totalWidth = (typeNodes.length - 1) * siblingSpacing;
+                const startX = centerX - (totalWidth / 2);
+
+                typeNodes.forEach((node, nodeIndex) => {
+                    node.x = startX + (nodeIndex * siblingSpacing);
+                    node.y = y;
+                });
+            });
+
+            console.log('📍 Positions hiérarchiques calculées:', nodes.map(n => `${n.name} (${n.type}): (${n.x}, ${n.y})`));
+            return nodes;
+        }
+
+        function buildTreeData(familyData) {
+            const nodes = [];
+            const links = [];
+            
+            // Add the main person
+            nodes.push({
+                id: familyData.person.id,
+                name: familyData.person.fullName,
+                gender: familyData.person.gender,
+                isAlive: familyData.person.isAlive,
+                birthDate: familyData.person.birthDate,
+                deathDate: familyData.person.deathDate,
+                age: familyData.person.age,
+                type: 'main'
+            });
+            
+            // Add parents
+            familyData.parents?.forEach(parent => {
+                nodes.push({
+                    id: parent.id,
+                    name: parent.fullName,
+                    gender: parent.gender,
+                    isAlive: parent.isAlive,
+                    birthDate: parent.birthDate,
+                    deathDate: parent.deathDate,
+                    age: parent.age,
+                    type: 'parent'
+                });
+                links.push({
+                    source: parent.id,
+                    target: familyData.person.id,
+                    type: 'parent-child'
+                });
+            });
+            
+            // Add children
+            familyData.children?.forEach(child => {
+                nodes.push({
+                    id: child.id,
+                    name: child.fullName,
+                    gender: child.gender,
+                    isAlive: child.isAlive,
+                    birthDate: child.birthDate,
+                    deathDate: child.deathDate,
+                    age: child.age,
+                    type: 'child'
+                });
+                links.push({
+                    source: familyData.person.id,
+                    target: child.id,
+                    type: 'parent-child'
+                });
+            });
+            
+            // Add siblings
+            familyData.siblings?.forEach(sibling => {
+                nodes.push({
+                    id: sibling.id,
+                    name: sibling.fullName,
+                    gender: sibling.gender,
+                    isAlive: sibling.isAlive,
+                    birthDate: sibling.birthDate,
+                    deathDate: sibling.deathDate,
+                    age: sibling.age,
+                    type: 'sibling'
+                });
+                
+                // Liens frères/sœurs avec leurs parents
+                familyData.parents?.forEach(parent => {
+                    links.push({
+                        source: parent.id,
+                        target: sibling.id,
+                        type: 'parent-child'
+                    });
+                });
+            });
+            
+            console.log('🌳 Données construites:', { 
+                nodes: nodes.length, 
+                links: links.length,
+                linksDetail: links.map(l => `${l.source} -> ${l.target} (${l.type})`)
+            });
+            
+            // Debug: Vérifier les types de données
+            links.forEach((link, i) => {
+                console.log(`🔗 Lien ${i}:`, {
+                    source: link.source,
+                    sourceType: typeof link.source,
+                    target: link.target,
+                    targetType: typeof link.target,
+                    type: link.type
+                });
+            });
+            
+            return { nodes, links };
+        }
+
+        function updateLoadButton() {
+            const select = document.getElementById('personSelect');
+            const loadButton = document.getElementById('loadTree');
+            
+            if (select.value && select.value !== '') {
+                loadButton.disabled = false;
+                console.log('✅ Bouton activé pour la personne ID:', select.value);
+            } else {
+                loadButton.disabled = true;
+                console.log('❌ Bouton désactivé - aucune personne sélectionnée');
+            }
+        }
+
+        function updateStatus(message, loading = false, error = false, success = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status';
+            
+            if (loading) statusDiv.classList.add('loading');
+            else if (error) statusDiv.classList.add('error');
+            else if (success) statusDiv.classList.add('success');
+            
+            statusDiv.style.display = 'block';
+            
+            if (!loading) {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Load persons on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPersons();
+        });
+    </script>
+</body>
+</html>
