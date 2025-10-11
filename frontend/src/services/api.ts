@@ -110,6 +110,10 @@ class ApiService {
   }
 }
 
+
 // Instance singleton
 export const apiService = new ApiService();
 export default apiService;
+
+// Export direct pour les tests
+export const fetchPersons = apiService.getPersons.bind(apiService);
