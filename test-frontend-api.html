@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Frontend-API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Frontend-API</h1>
+    <button onclick="testAPI()">Tester la connexion API</button>
+    <div id="results"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="info">🔄 Test en cours...</div>';
+
+            try {
+                console.log('🔍 Test de connexion API...');
+                console.log('🌐 URL:', `${API_BASE_URL}/persons`);
+
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                console.log('📡 Réponse:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const persons = await response.json();
+                console.log('👥 Personnes reçues:', persons.length);
+
+                let maleCount = 0;
+                let femaleCount = 0;
+                persons.forEach(person => {
+                    if (person.gender === 'Male') maleCount++;
+                    if (person.gender === 'Female') femaleCount++;
+                });
+
+                resultsDiv.innerHTML = `
+                    <div class="success">
+                        ✅ <strong>Connexion API réussie !</strong><br>
+                        📊 ${persons.length} personnes chargées<br>
+                        👨 ${maleCount} hommes<br>
+                        👩 ${femaleCount} femmes
+                    </div>
+                    <div class="info">
+                        <strong>Premières personnes :</strong><br>
+                        ${persons.slice(0, 3).map(p => `• ${p.fullName} (${p.gender})`).join('<br>')}
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Erreur de connexion :</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Test automatique au chargement
+        window.addEventListener('load', testAPI);
+    </script>
+</body>
+</html>

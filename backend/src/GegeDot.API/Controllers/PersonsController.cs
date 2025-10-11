@@ -198,6 +198,59 @@ public class PersonsController : ControllerBase
     }
 
     /// <summary>
+    /// Récupère l'arbre familial d'une personne (inspiré du repository distant)
+    /// </summary>
+    [HttpGet("{id}/family")]
+    public async Task<ActionResult<object>> GetFamilyTree(int id)
+    {
+        try
+        {
+            var person = await _personService.GetPersonByIdAsync(id);
+            if (person == null)
+                return NotFound($"Personne avec l'ID {id} non trouvée");
+
+            var children = await _personService.GetChildrenAsync(id);
+            var parents = await _personService.GetParentsAsync(id);
+            var siblings = await _personService.GetSiblingsAsync(id);
+
+            // Calculer les statistiques familiales
+            var totalFamilyMembers = 1 + parents.Count() + children.Count() + siblings.Count();
+
+            var familyData = new
+            {
+                person = person,
+                parents = parents,
+                children = children,
+                siblings = siblings,
+                spouse = (PersonDto?)null, // Pas encore implémenté
+                grandparents = new List<PersonDto>(), // Pas encore implémenté
+                grandchildren = new List<PersonDto>(), // Pas encore implémenté
+                totalFamilyMembers = totalFamilyMembers,
+                familyStats = new
+                {
+                    totalMembers = totalFamilyMembers,
+                    parentsCount = parents.Count(),
+                    childrenCount = children.Count(),
+                    siblingsCount = siblings.Count(),
+                    hasParents = parents.Any(),
+                    hasChildren = children.Any(),
+                    hasSiblings = siblings.Any()
+                }
+            };
+
+            _logger.LogInformation("Arbre familial récupéré pour {PersonName} (ID: {PersonId}) - {TotalMembers} membres", 
+                person.FullName, id, totalFamilyMembers);
+
+            return Ok(familyData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la récupération de l'arbre familial de la personne {PersonId}", id);
+            return StatusCode(500, "Erreur interne du serveur");
+        }
+    }
+
+    /// <summary>
     /// Supprime une personne
     /// </summary>
     [HttpDelete("{id}")]
