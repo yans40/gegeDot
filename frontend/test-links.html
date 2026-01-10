@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test des Liens</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        svg { border: 1px solid #ccc; }
+        .node { cursor: pointer; }
+        .link { stroke: #999; stroke-width: 2px; fill: none; }
+    </style>
+</head>
+<body>
+    <h1>Test des Liens Familiaux</h1>
+    <svg width="800" height="600" id="testSvg"></svg>
+    <div id="info"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+
+        async function testLinks() {
+            try {
+                // Récupérer les données de Charles Windsor
+                const response = await fetch(`${API_BASE_URL}/persons/10/family`);
+                const familyData = await response.json();
+                
+                console.log('Données familiales:', familyData);
+                
+                // Créer des nœuds de test
+                const nodes = [
+                    { id: 10, name: 'Charles Windsor', x: 400, y: 300, type: 'main' },
+                    { id: 8, name: 'Elizabeth Windsor', x: 300, y: 200, type: 'parent' },
+                    { id: 9, name: 'Philip Mountbatten', x: 500, y: 200, type: 'parent' },
+                    { id: 11, name: 'George Windsor', x: 200, y: 100, type: 'grandparent' },
+                    { id: 12, name: 'Elizabeth Bowes-Lyon', x: 400, y: 100, type: 'grandparent' }
+                ];
+
+                // Créer des liens de test
+                const links = [
+                    { source: 8, target: 10, type: 'parent-child' },
+                    { source: 9, target: 10, type: 'parent-child' },
+                    { source: 11, target: 8, type: 'parent-child' },
+                    { source: 12, target: 8, type: 'parent-child' }
+                ];
+
+                console.log('Nœuds:', nodes);
+                console.log('Liens:', links);
+
+                const svg = d3.select('#testSvg');
+                svg.selectAll('*').remove();
+
+                // Créer les liens
+                const link = svg.selectAll('.link')
+                    .data(links)
+                    .enter().append('line')
+                    .attr('class', 'link')
+                    .attr('x1', d => {
+                        const sourceNode = nodes.find(n => n.id === d.source);
+                        return sourceNode ? sourceNode.x : 0;
+                    })
+                    .attr('y1', d => {
+                        const sourceNode = nodes.find(n => n.id === d.source);
+                        return sourceNode ? sourceNode.y : 0;
+                    })
+                    .attr('x2', d => {
+                        const targetNode = nodes.find(n => n.id === d.target);
+                        return targetNode ? targetNode.x : 0;
+                    })
+                    .attr('y2', d => {
+                        const targetNode = nodes.find(n => n.id === d.target);
+                        return targetNode ? targetNode.y : 0;
+                    });
+
+                // Créer les nœuds
+                const node = svg.selectAll('.node')
+                    .data(nodes)
+                    .enter().append('g')
+                    .attr('class', 'node')
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+
+                node.append('circle')
+                    .attr('r', 15)
+                    .attr('fill', d => d.type === 'main' ? '#F39C12' : d.type === 'parent' ? '#4A90E2' : '#9B59B6');
+
+                node.append('text')
+                    .attr('dy', 25)
+                    .attr('text-anchor', 'middle')
+                    .text(d => d.name);
+
+                document.getElementById('info').innerHTML = `
+                    <h3>Test des Liens</h3>
+                    <p>Nœuds: ${nodes.length}</p>
+                    <p>Liens: ${links.length}</p>
+                    <p>Liens détaillés:</p>
+                    <ul>
+                        ${links.map(l => `<li>${l.source} -> ${l.target} (${l.type})</li>`).join('')}
+                    </ul>
+                `;
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('info').innerHTML = `<p style="color: red;">Erreur: ${error.message}</p>`;
+            }
+        }
+
+        // Lancer le test au chargement
+        window.addEventListener('load', testLinks);
+    </script>
+</body>
+</html>
+
+
+
+
+
+

@@ -281,3 +281,9 @@ Créer une documentation complète pour les utilisateurs et développeurs.
 
 echo "✅ Toutes les issues ont été créées avec succès!"
 echo "🔗 Vérifiez votre repository GitHub: https://github.com/$REPO_OWNER/$REPO_NAME/issues"
+
+
+
+
+
+

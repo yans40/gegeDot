@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Liens Simple - Debug</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .link { stroke-opacity: 0; stroke-width: 2; }
+        .link.visible { stroke-opacity: 0.8; }
+        .node { cursor: pointer; }
+        .node circle { fill: #4A90E2; stroke: #333; stroke-width: 2; }
+        .node text { font-size: 12px; text-anchor: middle; }
+    </style>
+</head>
+<body>
+    <h1>Test Liens Simple - Debug</h1>
+    <p>Survolez les nœuds pour voir les liens apparaître</p>
+    <svg width="600" height="400"></svg>
+
+    <script>
+        const svg = d3.select('svg');
+        const g = svg.append('g');
+
+        // Données de test simples
+        const nodes = [
+            { id: 1, name: 'Charles', x: 100, y: 100 },
+            { id: 2, name: 'Elizabeth', x: 200, y: 100 },
+            { id: 3, name: 'Philip', x: 150, y: 200 }
+        ];
+
+        const links = [
+            { source: 1, target: 2, type: 'marriage' },
+            { source: 1, target: 3, type: 'parent-child' },
+            { source: 2, target: 3, type: 'parent-child' }
+        ];
+
+        console.log('🔍 Données de test:', { nodes, links });
+
+        // Créer les liens
+        const linkElements = g.selectAll('.link')
+            .data(links)
+            .enter().append('line')
+            .attr('class', 'link')
+            .attr('data-source', d => d.source)
+            .attr('data-target', d => d.target)
+            .attr('x1', d => nodes.find(n => n.id === d.source).x)
+            .attr('y1', d => nodes.find(n => n.id === d.source).y)
+            .attr('x2', d => nodes.find(n => n.id === d.target).x)
+            .attr('y2', d => nodes.find(n => n.id === d.target).y)
+            .attr('stroke', '#333');
+
+        console.log('🔗 Liens créés:', linkElements.size());
+
+        // Créer les nœuds
+        const nodeElements = g.selectAll('.node')
+            .data(nodes)
+            .enter().append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `translate(${d.x},${d.y})`);
+
+        nodeElements.append('circle').attr('r', 20);
+        nodeElements.append('text').attr('dy', 5).text(d => d.name);
+
+        // Événements de survol
+        nodeElements.on('mouseover', function(event, d) {
+            console.log('🔄 Survol de:', d.name, 'ID:', d.id);
+            
+            // Afficher les liens connectés
+            d3.selectAll('.link')
+                .filter(function() {
+                    const sourceId = d3.select(this).attr('data-source');
+                    const targetId = d3.select(this).attr('data-target');
+                    const isConnected = sourceId == d.id || targetId == d.id;
+                    console.log(`Lien ${sourceId} -> ${targetId}: ${isConnected ? 'visible' : 'invisible'} (survol: ${d.id})`);
+                    return isConnected;
+                })
+                .classed('visible', true);
+        });
+
+        nodeElements.on('mouseout', function() {
+            console.log('👋 Fin du survol');
+            d3.selectAll('.link').classed('visible', false);
+        });
+
+        console.log('✅ Test initialisé');
+    </script>
+</body>
+</html>
+
+
+
+
+
+

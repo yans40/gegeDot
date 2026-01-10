@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Interactive Tree</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            margin: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+        
+        .controls select, .controls button {
+            margin: 5px;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        .controls button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .controls button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .tree-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 5px;
+            overflow: auto;
+        }
+        
+        .tree-card {
+            position: absolute;
+            width: 160px;
+            min-height: 100px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .tree-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 20;
+        }
+        
+        .tree-card.clickable {
+            border-color: #007bff;
+            box-shadow: 0 2px 4px rgba(0,123,255,0.2);
+        }
+        
+        .tree-card.clickable:hover {
+            border-color: #0056b3;
+            box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+        }
+        
+        .card-id {
+            position: absolute;
+            top: 5px;
+            left: 8px;
+            font-weight: bold;
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .card-name {
+            font-weight: bold;
+            font-size: 12px;
+            margin: 15px 0 5px 0;
+            color: #333;
+            text-align: center;
+        }
+        
+        .card-details {
+            font-size: 9px;
+            color: #666;
+            line-height: 1.2;
+        }
+        
+        .card-details div {
+            margin-bottom: 1px;
+        }
+        
+        .click-hint {
+            position: absolute;
+            bottom: 3px;
+            right: 5px;
+            font-size: 8px;
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.loading { background: #d1ecf1; color: #0c5460; }
+        
+        .debug-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌳 Debug Interactive Tree</h1>
+        
+        <div class="controls">
+            <label for="personSelect">Sélectionner une personne :</label>
+            <select id="personSelect">
+                <option value="">-- Choisir une personne --</option>
+            </select>
+            <button id="loadBtn" onclick="loadTree()" disabled>Charger l'Arbre</button>
+            <button onclick="clearTree()">Effacer</button>
+        </div>
+        
+        <div class="status" id="status">Prêt</div>
+        
+        <div class="tree-container" id="treeContainer">
+            <div style="text-align: center; padding: 50px; color: #666;">
+                Sélectionnez une personne pour commencer
+            </div>
+        </div>
+        
+        <div class="debug-info" id="debugInfo">
+            <strong>Debug Info:</strong><br>
+            <span id="debugText">En attente...</span>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        let currentFamilyData = null;
+        let treeCards = [];
+        let expandedCards = new Set();
+
+        // Debug function
+        function debug(message) {
+            console.log('DEBUG:', message);
+            document.getElementById('debugText').innerHTML += message + '<br>';
+        }
+
+        // Update status
+        function updateStatus(message, type = '') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            debug(`Status: ${message}`);
+        }
+
+        // Load persons
+        async function loadPersons() {
+            try {
+                debug('Chargement des personnes...');
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const persons = await response.json();
+                debug(`Personnes chargées: ${persons.length}`);
+                
+                const select = document.getElementById('personSelect');
+                select.innerHTML = '<option value="">-- Choisir une personne --</option>';
+                
+                persons.forEach(person => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.firstName} ${person.lastName}`;
+                    select.appendChild(option);
+                });
+                
+                updateStatus('Personnes chargées', 'success');
+            } catch (error) {
+                debug(`Erreur: ${error.message}`);
+                updateStatus('Erreur lors du chargement', 'error');
+            }
+        }
+
+        // Update load button
+        function updateLoadButton() {
+            const select = document.getElementById('personSelect');
+            const loadBtn = document.getElementById('loadBtn');
+            loadBtn.disabled = !select.value;
+        }
+
+        // Load tree
+        async function loadTree() {
+            const selectedPersonId = document.getElementById('personSelect').value;
+            if (!selectedPersonId) return;
+
+            updateStatus('Chargement de l\'arbre...', 'loading');
+            debug(`Chargement de l'arbre pour ID: ${selectedPersonId}`);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons/${selectedPersonId}/family`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const familyData = await response.json();
+                debug(`Données familiales reçues: ${JSON.stringify(familyData, null, 2)}`);
+                
+                currentFamilyData = familyData;
+                renderTree(familyData);
+                updateStatus(`Arbre chargé pour ${familyData.person.firstName} ${familyData.person.lastName}`, 'success');
+            } catch (error) {
+                debug(`Erreur: ${error.message}`);
+                updateStatus('Erreur lors du chargement', 'error');
+            }
+        }
+
+        // Render tree
+        function renderTree(familyData) {
+            const container = document.getElementById('treeContainer');
+            container.innerHTML = '';
+            treeCards = [];
+            expandedCards.clear();
+            
+            debug('Rendu de l\'arbre...');
+            
+            // Calculate positions
+            const positions = calculatePositions(familyData);
+            debug(`Positions calculées: ${Object.keys(positions).length} cartes`);
+            
+            // Create cards
+            createCards(positions, container);
+            
+            // Animate
+            animateCards();
+        }
+
+        // Calculate positions
+        function calculatePositions(familyData) {
+            const positions = {};
+            const containerWidth = 1000;
+            const containerHeight = 500;
+            const cardWidth = 160;
+            const levelHeight = 120;
+            const levelSpacing = 180;
+
+            // Main person (center)
+            positions.main = {
+                x: (containerWidth - cardWidth) / 2,
+                y: containerHeight - levelHeight,
+                person: familyData.person,
+                type: 'main'
+            };
+
+            // Parents
+            if (familyData.parents && familyData.parents.length > 0) {
+                const parentCount = familyData.parents.length;
+                const startX = positions.main.x - (parentCount - 1) * levelSpacing / 2;
+                
+                familyData.parents.forEach((parent, index) => {
+                    positions[`parent_${index}`] = {
+                        x: startX + index * levelSpacing,
+                        y: positions.main.y - levelHeight,
+                        person: parent,
+                        type: 'parent'
+                    };
+                });
+            }
+
+            // Children
+            if (familyData.children && familyData.children.length > 0) {
+                const childCount = familyData.children.length;
+                const startX = positions.main.x - (childCount - 1) * levelSpacing / 2;
+                
+                familyData.children.forEach((child, index) => {
+                    positions[`child_${index}`] = {
+                        x: startX + index * levelSpacing,
+                        y: positions.main.y + levelHeight,
+                        person: child,
+                        type: 'child'
+                    };
+                });
+            }
+
+            // Siblings - EXCLUS de l'affichage initial
+            // Les frères et sœurs ne sont pas affichés dans la vue initiale
+
+            return positions;
+        }
+
+        // Create cards - SEULEMENT la carte principale au début
+        function createCards(positions, container) {
+            // Créer SEULEMENT la carte principale (main)
+            const mainPos = positions.main;
+            if (mainPos) {
+                const card = createCard(mainPos.person, mainPos.x, mainPos.y, mainPos.type, true);
+                container.appendChild(card);
+                treeCards.push(card);
+                debug(`Carte principale créée: ${mainPos.person.firstName} ${mainPos.person.lastName} à (${mainPos.x}, ${mainPos.y})`);
+            }
+            
+            // Les autres cartes (parents/enfants) ne sont PAS créées au début
+            // Elles apparaîtront seulement quand on clique sur la carte principale
+        }
+
+        // Create card
+        function createCard(person, x, y, type, isClickable = false) {
+            const card = document.createElement('div');
+            card.className = `tree-card ${isClickable ? 'clickable' : ''}`;
+            card.style.left = x + 'px';
+            card.style.top = y + 'px';
+            
+            const birthYear = person.birthDate ? new Date(person.birthDate).getFullYear() : 'N/A';
+            const deathYear = person.deathDate ? new Date(person.deathDate).getFullYear() : 'N/A';
+            const status = person.isAlive ? 'Vivant(e)' : 'Décédé(e)';
+            
+            card.innerHTML = `
+                <div class="card-id">${person.id}</div>
+                <div class="card-name">${person.firstName} ${person.lastName}</div>
+                <div class="card-details">
+                    <div>Né(e): ${birthYear}</div>
+                    <div>Décédé(e): ${deathYear}</div>
+                    <div>Lieu: ${person.birthPlace || 'N/A'}</div>
+                    <div>Statut: ${status}</div>
+                </div>
+                ${isClickable ? '<div class="click-hint">👆 Cliquer</div>' : ''}
+            `;
+            
+            card.person = person;
+            card.type = type;
+            card.isClickable = isClickable;
+            
+            if (isClickable) {
+                card.addEventListener('click', () => {
+                    debug(`Clic sur: ${person.firstName} ${person.lastName}`);
+                    expandCard(card);
+                });
+            }
+            
+            return card;
+        }
+
+        // Expand card
+        async function expandCard(clickedCard) {
+            if (expandedCards.has(clickedCard.person.id)) {
+                debug('Carte déjà étendue');
+                return;
+            }
+            
+            const personId = clickedCard.person.id;
+            updateStatus(`Chargement de la famille de ${clickedCard.person.firstName}...`, 'loading');
+            debug(`Expansion de la carte: ${clickedCard.person.firstName} (ID: ${personId})`);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons/${personId}/family`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const familyData = await response.json();
+                debug(`Données familiales pour expansion: ${JSON.stringify(familyData, null, 2)}`);
+                
+                createExpandedCards(clickedCard, familyData);
+                expandedCards.add(personId);
+                
+                // Remove click hint
+                clickedCard.classList.remove('clickable');
+                const clickHint = clickedCard.querySelector('.click-hint');
+                if (clickHint) {
+                    clickHint.remove();
+                }
+                
+                updateStatus(`Famille de ${clickedCard.person.firstName} chargée`, 'success');
+            } catch (error) {
+                debug(`Erreur expansion: ${error.message}`);
+                updateStatus('Erreur lors du chargement', 'error');
+            }
+        }
+
+        // Create expanded cards
+        function createExpandedCards(parentCard, familyData) {
+            const container = document.getElementById('treeContainer');
+            const parentX = parseInt(parentCard.style.left);
+            const parentY = parseInt(parentCard.style.top);
+            const levelSpacing = 180;
+            const levelHeight = 120;
+            
+            debug(`Création des cartes étendues autour de (${parentX}, ${parentY})`);
+            
+            // Parents (parents directs ou grandparents selon le contexte)
+            if (familyData.parents && familyData.parents.length > 0) {
+                const parentCount = familyData.parents.length;
+                const startX = parentX - (parentCount - 1) * levelSpacing / 2;
+                
+                familyData.parents.forEach((parent, index) => {
+                    const existingCard = treeCards.find(card => card.person.id === parent.id);
+                    if (!existingCard) {
+                        const x = startX + index * levelSpacing;
+                        const y = parentY - levelHeight;
+                        
+                        const card = createCard(parent, x, y, 'parent', true);
+                        container.appendChild(card);
+                        treeCards.push(card);
+                        
+                        debug(`Carte parent créée: ${parent.firstName} à (${x}, ${y})`);
+                        
+                        setTimeout(() => {
+                            card.style.opacity = '1';
+                            card.style.transform = 'scale(1)';
+                        }, index * 200);
+                    } else {
+                        debug(`Carte parent déjà existante: ${parent.firstName}`);
+                    }
+                });
+            }
+            
+            // Children - EXCLUS de l'expansion
+            // Les enfants ne sont pas affichés lors de l'expansion (seulement les parents)
+            if (familyData.children && familyData.children.length > 0) {
+                debug(`Enfants exclus de l'expansion: ${familyData.children.map(c => c.firstName).join(', ')}`);
+            }
+            
+            // Siblings - EXCLUS de l'expansion
+            // Les frères et sœurs ne sont pas affichés lors de l'expansion
+            if (familyData.siblings && familyData.siblings.length > 0) {
+                debug(`Frères et sœurs exclus: ${familyData.siblings.map(s => s.firstName).join(', ')}`);
+            }
+        }
+
+        // Animate cards
+        function animateCards() {
+            treeCards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.8)';
+                
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'scale(1)';
+                }, index * 200);
+            });
+        }
+
+        // Clear tree
+        function clearTree() {
+            const container = document.getElementById('treeContainer');
+            container.innerHTML = '<div style="text-align: center; padding: 50px; color: #666;">Sélectionnez une personne pour commencer</div>';
+            treeCards = [];
+            expandedCards.clear();
+            currentFamilyData = null;
+            document.getElementById('debugText').innerHTML = 'En attente...';
+            updateStatus('Prêt');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            debug('Initialisation...');
+            loadPersons();
+            updateLoadButton();
+            
+            document.getElementById('personSelect').addEventListener('change', updateLoadButton);
+        });
+    </script>
+</body>
+</html>

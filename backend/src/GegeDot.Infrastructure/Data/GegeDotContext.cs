@@ -26,6 +26,9 @@ public class GegeDotContext : DbContext
             entity.Property(e => e.MiddleName).HasMaxLength(100);
             entity.Property(e => e.BirthPlace).HasMaxLength(200);
             entity.Property(e => e.DeathPlace).HasMaxLength(200);
+            entity.Property(e => e.Profession).HasMaxLength(100);
+            entity.Property(e => e.MarriagePlace).HasMaxLength(200);
+            entity.Property(e => e.DeathStatus).HasMaxLength(50);
             entity.Property(e => e.PhotoUrl).HasMaxLength(500);
             entity.Property(e => e.Gender).HasConversion<string>();
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");

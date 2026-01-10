@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GegeDot - Visualisation Hiérarchique Beta - FIXED</title>
+    <title>GegeDot - Visualisation Hiérarchique Beta - STABLE v3.0</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
@@ -29,6 +29,26 @@
             margin-bottom: 30px;
             flex-wrap: wrap;
             gap: 10px;
+            align-items: center;
+        }
+        
+        .person-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .person-selector label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .person-selector select {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 200px;
         } 
         
         .controls button {
@@ -51,6 +71,35 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+        
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: 20px;
+        }
+        
+        .zoom-controls button {
+            padding: 8px 12px;
+            font-size: 14px;
+            min-width: 40px;
+        }
+        
+        .zoom-controls span {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .card-viewport {
+            transform-origin: 0 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .card-viewport:active {
+            cursor: grabbing;
         }
         
         .person-selector {
@@ -77,6 +126,161 @@
             position: relative;
         }
         
+        /* Styles pour les cartes interactives - Version Simple qui Fonctionne */
+        .interactive-card {
+            position: absolute;
+            width: 150px;
+            min-height: 90px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 11px;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .interactive-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            z-index: 20;
+            border-color: #667eea;
+        }
+
+        .interactive-card.clickable {
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .interactive-card.clickable:hover {
+            border-color: #764ba2;
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .interactive-card .card-id {
+            position: absolute;
+            top: 5px;
+            left: 8px;
+            font-weight: bold;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .interactive-card .card-name {
+            font-weight: bold;
+            font-size: 13px;
+            margin: 15px 0 8px 0;
+            color: #333;
+            text-align: center;
+        }
+
+        .interactive-card .card-details {
+            font-size: 10px;
+            color: #666;
+            line-height: 1.3;
+        }
+
+        .interactive-card .card-details div {
+            margin-bottom: 2px;
+        }
+
+        .interactive-card .click-hint {
+            position: absolute;
+            bottom: 5px;
+            right: 8px;
+            font-size: 9px;
+            color: #667eea;
+            font-weight: bold;
+            opacity: 0.7;
+        }
+        
+        /* Styles pour le mode compact */
+        .card-id-compact {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-weight: bold;
+            font-size: 8px;
+            color: #666;
+        }
+        
+        .card-name-compact {
+            font-weight: bold;
+            font-size: 10px;
+            margin: 8px 0 4px 0;
+            color: #333;
+            text-align: center;
+        }
+        
+        .card-status-compact {
+            font-size: 8px;
+            text-align: center;
+        }
+        
+        .click-hint-compact {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 7px;
+            color: #667eea;
+            font-weight: bold;
+            opacity: 0.7;
+        }
+        
+        /* Styles pour le mode moyen */
+        .card-name-medium {
+            font-weight: bold;
+            font-size: 11px;
+            margin: 12px 0 6px 0;
+            color: #333;
+            text-align: center;
+        }
+        
+        .card-details-medium {
+            font-size: 9px;
+            color: #666;
+            line-height: 1.2;
+        }
+        
+        .card-details-medium div {
+            margin-bottom: 1px;
+        }
+        
+        /* Styles pour les liens simples entre cartes */
+        .family-link {
+            position: absolute;
+            background: #667eea;
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .family-link.horizontal {
+            height: 2px;
+        }
+        
+        .family-link.vertical {
+            width: 2px;
+        }
+        
+        .family-link.diagonal {
+            height: 2px;
+            transform-origin: left center;
+        }
+
+        /* Animation pour l'apparition des cartes */
+        .interactive-card {
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .interactive-card.visible {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+        
         .legend {
             position: fixed;
             bottom: 20px;
@@ -88,6 +292,62 @@
             z-index: 1000;
             max-width: 220px;
             border: 1px solid #e0e0e0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        
+        .legend.collapsed {
+            transform: translateX(calc(100% - 50px));
+            opacity: 0.7;
+        }
+        
+        .legend.collapsed .legend-content {
+            display: none;
+        }
+        
+        .legend-toggle {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            z-index: 1001;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .legend-toggle:hover {
+            background: #5568d3;
+            transform: scale(1.1);
+        }
+        
+        .legend.collapsed {
+            max-width: 50px;
+            padding: 10px;
+        }
+        
+        .legend.collapsed .legend-toggle {
+            position: relative;
+            top: 0;
+            left: 0;
+        }
+        
+        .legend-content {
+            margin-top: 35px;
+        }
+        
+        .legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #667eea;
         }
         
         .legend-section {
@@ -179,37 +439,199 @@
             max-width: 250px;
             display: none;
         }
+        
+        /* Modal pour ajouter une personne */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 30px;
+            border: none;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            color: #667eea;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .form-actions button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .required {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🌳 GegeDot - Visualisation Hiérarchique Beta</h1>
-        <p>Version FIXED - Liens au survol fonctionnels</p>
+        <p>Version STABLE v3.0 - Arbre Familial + Vue Carte Éventail Fonctionnelle</p>
     </div>
 
     <div class="controls">
         <div class="person-selector">
+            <label for="personSelect">👤 Sélectionner une personne :</label>
             <select id="personSelect" onchange="updateLoadButton()">
-                <option value="">Sélectionner une personne...</option>
+                <option value="">-- Choisir une personne --</option>
             </select>
         </div>
-        <button id="loadTree" onclick="loadFamilyTree()" disabled>Charger l'arbre familial</button>
-        <button onclick="loadPersons()">Actualiser la liste</button>
+        <button id="loadTree" onclick="loadFamilyTree()" disabled>🌳 Charger l'Arbre Familial</button>
+        <button id="loadCard" onclick="loadCardView()" disabled>🎴 Vue Carte Éventail</button>
+        <button onclick="loadPersons()">🔄 Actualiser la liste</button>
+        <button onclick="openAddPersonForm()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">➕ Ajouter une personne</button>
+        <div class="zoom-controls">
+            <button onclick="zoomIn()">🔍+</button>
+            <button onclick="zoomOut()">🔍-</button>
+            <button onclick="resetZoom()">🎯</button>
+            <span id="zoomLevel">100%</span>
+        </div>
     </div>
 
     <div id="status" class="status" style="display: none;"></div>
 
     <div class="visualization-container">
         <svg id="treeSvg" width="100%" height="600"></svg>
+        <div id="cardContainer" style="display: none; position: relative; width: 100%; height: 600px; overflow: hidden; cursor: grab;" class="card-viewport"></div>
         <div id="tooltip"></div>
     </div>
 
-    <div class="legend">
+    <div class="legend" id="legendGuide">
+        <button class="legend-toggle" onclick="toggleLegend()" title="Masquer/Afficher le guide">📋</button>
+        <div class="legend-content">
+            <h3>📋 Guide d'Utilisation</h3>
+            
+            <div class="legend-section">
+            <h4>🎯 Comment utiliser</h4>
+            <div class="legend-item">
+                <span>1️⃣ Sélectionnez une personne dans le menu</span>
+            </div>
+            <div class="legend-item">
+                <span>2️⃣ Cliquez sur "Charger l'arbre familial"</span>
+            </div>
+            <div class="legend-item">
+                <span>3️⃣ Survolez les personnes pour voir les liens</span>
+            </div>
+        </div>
+        
         <div class="legend-section">
-            <h4>👥 Personnes</h4>
+            <h4>👥 Types de Personnes</h4>
             <div class="legend-item">
                 <div class="legend-color" style="background-color: #F39C12; border: 2px solid #E67E22;"></div>
-                <span>Personne principale</span>
+                <span>Personne centrale</span>
             </div>
             <div class="legend-item">
                 <div class="legend-color" style="background-color: #4A90E2;"></div>
@@ -220,54 +642,106 @@
                 <span>Femme</span>
             </div>
         </div>
+        
         <div class="legend-section">
-            <h4>🔗 Relations</h4>
+            <h4>🔗 Relations Familiales</h4>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #4A90E2; height: 2px; border-radius: 0;"></div>
-                <span>Parent-Enfant</span>
+                <div class="legend-color" style="background-color: #4A90E2; height: 3px; border-radius: 0;"></div>
+                <span>Lien parent-enfant</span>
             </div>
             <div class="legend-item">
-                <div class="legend-color" style="background-color: #E24A90; height: 2px; border-radius: 0;"></div>
-                <span>Mariage</span>
+                <div class="legend-color" style="background-color: #E24A90; height: 3px; border-radius: 0;"></div>
+                <span>Lien fraternel</span>
             </div>
         </div>
+        
         <div class="legend-section">
-            <h4>💡 Interaction</h4>
+            <h4>💡 Astuces</h4>
             <div class="legend-item">
-                <span>Survolez une personne pour voir ses liens familiaux</span>
+                <span>• Les liens apparaissent au survol</span>
             </div>
+            <div class="legend-item">
+                <span>• Cliquez sur "Actualiser" pour recharger</span>
+            </div>
+            <div class="legend-item">
+                <span>• Les générations sont alignées</span>
+            </div>
+        </div>
         </div>
     </div>
 
     <script>
         const API_BASE_URL = 'http://localhost:5001/api';
         let currentFamilyData = null;
+        
+        // Cache pour les données familiales
+        const familyDataCache = new Map();
+        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        
+        // Fonction pour gérer le cache des données familiales
+        async function getCachedFamilyData(personId) {
+            const cacheKey = `family_${personId}`;
+            const cached = familyDataCache.get(cacheKey);
+            
+            if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+                console.log(`📦 Données familiales récupérées du cache pour la personne ${personId}`);
+                return cached.data;
+            }
+            
+            console.log(`🌐 Récupération des données familiales depuis l'API pour la personne ${personId}`);
+            const response = await fetch(`${API_BASE_URL}/persons/${personId}/family`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Mettre en cache
+            familyDataCache.set(cacheKey, {
+                data: data,
+                timestamp: Date.now()
+            });
+            
+            return data;
+        }
+        
 
         async function loadPersons() {
+            console.log('🔄 loadPersons() appelée');
             try {
-                updateStatus('Chargement des personnes...', true);
-                console.log('🔍 Début du chargement des personnes...');
-                
+                console.log('📡 Appel API...');
                 const response = await fetch(`${API_BASE_URL}/persons`);
-                console.log('📡 Réponse reçue:', response.status, response.statusText);
+                console.log(`📡 Réponse: ${response.status}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const persons = await response.json();
-                console.log('👥 Personnes reçues:', persons.length, 'personnes');
+                console.log(`👥 ${persons.length} personnes reçues`);
                 
                 const select = document.getElementById('personSelect');
-                select.innerHTML = '<option value="">Sélectionner une personne...</option>';
+                console.log(`🎯 Select trouvé: ${!!select}`);
                 
-                persons.forEach(person => {
+                if (!select) {
+                    throw new Error('Élément personSelect non trouvé');
+                }
+                
+                select.innerHTML = '<option value="">Sélectionner une personne...</option>';
+                console.log('🗑️ Dropdown vidé');
+                
+                persons.forEach((person, index) => {
                     const option = document.createElement('option');
                     option.value = person.id;
                     option.textContent = `${person.fullName} (${person.gender})`;
                     select.appendChild(option);
+                    if (index < 3) {
+                        console.log(`➕ ${person.fullName}`);
+                    }
                 });
                 
+                console.log(`✅ ${persons.length} options ajoutées`);
                 updateStatus(`${persons.length} personnes chargées avec succès`, false, false, true);
             } catch (error) {
                 console.error('❌ Erreur lors du chargement des personnes:', error);
@@ -283,24 +757,24 @@
             }
 
             try {
+                const startTime = performance.now();
                 updateStatus('Chargement de l\'arbre familial...', true);
                 console.log('🌳 Chargement de l\'arbre pour la personne ID:', selectedPersonId);
 
-                const response = await fetch(`${API_BASE_URL}/persons/${selectedPersonId}/family`);
-                console.log('📡 Réponse famille:', response.status, response.statusText);
+                // Afficher la vue arbre et masquer la vue carte
+                document.getElementById('treeSvg').style.display = 'block';
+                document.getElementById('cardContainer').style.display = 'none';
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const familyData = await response.json();
+                const familyData = await getCachedFamilyData(selectedPersonId);
                 console.log('👨‍👩‍👧‍👦 Données familiales reçues:', familyData);
 
                 currentFamilyData = familyData;
-                renderTree(familyData);
+                await renderTree(familyData);
                 
+                const endTime = performance.now();
+                const loadTime = Math.round(endTime - startTime);
                 const stats = familyData.familyStats;
-                const statusMessage = `Arbre familial chargé pour ${familyData.person.fullName} - ${stats.totalMembers} membres`;
+                const statusMessage = `Arbre familial chargé pour ${familyData.person.fullName} - ${stats.totalMembers} membres (${loadTime}ms)`;
                 updateStatus(statusMessage, false, false, true);
             } catch (error) {
                 console.error('❌ Erreur lors du chargement de l\'arbre familial:', error);
@@ -308,7 +782,7 @@
             }
         }
 
-        function renderTree(data) {
+        async function renderTree(data) {
             const svg = d3.select('#treeSvg');
             svg.selectAll('*').remove();
 
@@ -320,8 +794,8 @@
             const g = svg.append('g');
 
             // Créer une structure avec tous les membres de la famille
-            const treeData = buildTreeData(data);
-            console.log('🌳 Structure familiale créée:', treeData);
+            const treeData = await buildTreeData(data);
+            console.log('🌳 Structure familiale créée avec 3-4 générations:', treeData);
 
             // Create hierarchical layout (comme la branche hierarchical-layout)
             const positionedNodes = calculateHierarchicalPositions(treeData.nodes, width, height);
@@ -381,10 +855,14 @@
                 })
                 .attr('fill', d => {
                     if (d.type === 'main') return '#F39C12';
+                    if (d.type === 'grandparent') return '#9B59B6';
+                    if (d.type === 'grandchild') return '#2ECC71';
                     return d.gender === 'Male' ? '#4A90E2' : '#E24A90';
                 })
                 .attr('stroke', d => {
                     if (d.type === 'main') return '#E67E22';
+                    if (d.type === 'grandparent') return '#8E44AD';
+                    if (d.type === 'grandchild') return '#27AE60';
                     return d.gender === 'Male' ? '#2C5F8B' : '#B83A73';
                 })
                 .attr('stroke-width', d => d.type === 'main' ? 4 : 3)
@@ -491,7 +969,7 @@
             });
 
             // Position each type of node
-            const sortedTypes = ['grandparent', 'parent', 'main', 'sibling', 'child'];
+            const sortedTypes = ['grandparent', 'parent', 'main', 'sibling', 'child', 'grandchild'];
             
             sortedTypes.forEach((type, index) => {
                 const typeNodes = nodesByType.get(type) || [];
@@ -505,6 +983,7 @@
                     case 'main': 
                     case 'sibling': y = centerY; break;
                     case 'child': y = centerY + levelSpacing; break;
+                    case 'grandchild': y = centerY + (2 * levelSpacing); break;
                     default: y = centerY;
                 }
 
@@ -522,9 +1001,11 @@
             return nodes;
         }
 
-        function buildTreeData(familyData) {
+        async function buildTreeData(familyData) {
             const nodes = [];
             const links = [];
+            const processedIds = new Set(); // Pour éviter les boucles infinies
+            const maxDepth = 2; // Limiter la profondeur pour éviter les boucles
             
             // Add the main person
             nodes.push({
@@ -537,6 +1018,7 @@
                 age: familyData.person.age,
                 type: 'main'
             });
+            processedIds.add(familyData.person.id);
             
             // Add parents
             familyData.parents?.forEach(parent => {
@@ -550,6 +1032,7 @@
                     age: parent.age,
                     type: 'parent'
                 });
+                processedIds.add(parent.id);
                 links.push({
                     source: parent.id,
                     target: familyData.person.id,
@@ -569,6 +1052,7 @@
                     age: child.age,
                     type: 'child'
                 });
+                processedIds.add(child.id);
                 links.push({
                     source: familyData.person.id,
                     target: child.id,
@@ -588,6 +1072,7 @@
                     age: sibling.age,
                     type: 'sibling'
                 });
+                processedIds.add(sibling.id);
                 
                 // Liens frères/sœurs avec leurs parents
                 familyData.parents?.forEach(parent => {
@@ -598,22 +1083,23 @@
                     });
                 });
             });
+
+            // TEMPORAIRE: Désactivé pour éviter les boucles infinies
+            // TODO: Réactiver avec une meilleure gestion des boucles
+            console.log('⚠️ Récupération des grands-parents et petits-enfants temporairement désactivée');
             
-            console.log('🌳 Données construites:', { 
+            console.log('🌳 Données construites avec 3-4 générations:', { 
                 nodes: nodes.length, 
                 links: links.length,
+                generations: {
+                    grandparents: nodes.filter(n => n.type === 'grandparent').length,
+                    parents: nodes.filter(n => n.type === 'parent').length,
+                    main: nodes.filter(n => n.type === 'main').length,
+                    siblings: nodes.filter(n => n.type === 'sibling').length,
+                    children: nodes.filter(n => n.type === 'child').length,
+                    grandchildren: nodes.filter(n => n.type === 'grandchild').length
+                },
                 linksDetail: links.map(l => `${l.source} -> ${l.target} (${l.type})`)
-            });
-            
-            // Debug: Vérifier les types de données
-            links.forEach((link, i) => {
-                console.log(`🔗 Lien ${i}:`, {
-                    source: link.source,
-                    sourceType: typeof link.source,
-                    target: link.target,
-                    targetType: typeof link.target,
-                    type: link.type
-                });
             });
             
             return { nodes, links };
@@ -621,14 +1107,17 @@
 
         function updateLoadButton() {
             const select = document.getElementById('personSelect');
-            const loadButton = document.getElementById('loadTree');
+            const loadTreeButton = document.getElementById('loadTree');
+            const loadCardButton = document.getElementById('loadCard');
             
             if (select.value && select.value !== '') {
-                loadButton.disabled = false;
-                console.log('✅ Bouton activé pour la personne ID:', select.value);
+                loadTreeButton.disabled = false;
+                loadCardButton.disabled = false;
+                console.log('✅ Boutons activés pour la personne ID:', select.value);
             } else {
-                loadButton.disabled = true;
-                console.log('❌ Bouton désactivé - aucune personne sélectionnée');
+                loadTreeButton.disabled = true;
+                loadCardButton.disabled = true;
+                console.log('❌ Boutons désactivés - aucune personne sélectionnée');
             }
         }
 
@@ -650,10 +1139,721 @@
             }
         }
 
+        // Variables pour la vue carte éventail
+        let treeCards = [];
+        let cardFamilyDataCache = new Map();
+        
+        // Variables pour le zoom et le déplacement
+        let currentZoom = 1;
+        let currentPanX = 0;
+        let currentPanY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        
+        // Fonction pour créer un lien simple entre deux cartes
+        function createFamilyLink(fromCard, toCard) {
+            const container = document.getElementById('cardContainer');
+            const fromRect = fromCard.getBoundingClientRect();
+            const toRect = toCard.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            
+            // Calculer les positions relatives au conteneur
+            const fromX = fromRect.left - containerRect.left + fromRect.width / 2;
+            const fromY = fromRect.top - containerRect.top + fromRect.height / 2;
+            const toX = toRect.left - containerRect.left + toRect.width / 2;
+            const toY = toRect.top - containerRect.top + toRect.height / 2;
+            
+            // Calculer la distance et l'angle
+            const deltaX = toX - fromX;
+            const deltaY = toY - fromY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+            
+            // Créer le lien
+            const link = document.createElement('div');
+            link.className = 'family-link diagonal';
+            link.style.left = fromX + 'px';
+            link.style.top = fromY + 'px';
+            link.style.width = distance + 'px';
+            link.style.transform = `rotate(${angle}deg)`;
+            
+            container.appendChild(link);
+            return link;
+        }
+        
+        // Fonction pour nettoyer tous les liens existants
+        function clearFamilyLinks() {
+            const container = document.getElementById('cardContainer');
+            const existingLinks = container.querySelectorAll('.family-link');
+            existingLinks.forEach(link => link.remove());
+        }
+        
+        // Fonction pour redessiner tous les liens
+        function redrawFamilyLinks() {
+            clearFamilyLinks();
+            
+            // Créer des liens entre les cartes parent-enfant
+            treeCards.forEach(card => {
+                if (card.dataset.type === 'parent') {
+                    // Trouver la carte enfant correspondante
+                    const childCard = treeCards.find(c => 
+                        c.dataset.type === 'main' || 
+                        (c.dataset.type === 'parent' && c !== card)
+                    );
+                    
+                    if (childCard) {
+                        createFamilyLink(childCard, card);
+                    }
+                }
+            });
+        }
+
+        // Fonction pour charger la vue carte éventail
+        async function loadCardView() {
+            const selectedPersonId = document.getElementById('personSelect').value;
+            if (!selectedPersonId) {
+                updateStatus('Veuillez sélectionner une personne', false, true);
+                return;
+            }
+
+            try {
+                updateStatus('Chargement de la vue carte éventail...', true);
+                console.log('🎴 Chargement de la vue carte pour la personne ID:', selectedPersonId);
+
+                // Masquer la vue arbre et afficher la vue carte
+                document.getElementById('treeSvg').style.display = 'none';
+                document.getElementById('cardContainer').style.display = 'block';
+
+                const familyData = await getCachedFamilyData(selectedPersonId);
+                console.log('👨‍👩‍👧‍👦 Données familiales reçues pour vue carte:', familyData);
+
+                await renderCardView(familyData);
+                
+                updateStatus(`Vue carte éventail chargée pour ${familyData.person.fullName}`, false, false, true);
+            } catch (error) {
+                console.error('❌ Erreur lors du chargement de la vue carte:', error);
+                updateStatus(`Erreur lors du chargement de la vue carte: ${error.message}`, false, true);
+            }
+        }
+
+        // Fonction pour rendre la vue carte éventail
+        async function renderCardView(familyData) {
+            const container = document.getElementById('cardContainer');
+            container.innerHTML = '';
+            treeCards = [];
+
+            // Créer la carte principale
+            const mainCard = createInteractiveCard(familyData.person, 400, 300, 'main', true);
+            container.appendChild(mainCard);
+            treeCards.push(mainCard);
+
+            // Stocker les données familiales sur la carte pour l'expansion
+            mainCard.familyData = familyData;
+
+            // Animer l'apparition de la carte principale
+            setTimeout(() => {
+                mainCard.classList.add('visible');
+            }, 100);
+        }
+
+        // Fonction pour créer une carte interactive
+        function createInteractiveCard(person, x, y, type, clickable = false) {
+            const card = document.createElement('div');
+            card.className = 'interactive-card';
+            if (clickable) {
+                card.classList.add('clickable');
+            }
+
+            card.style.left = x + 'px';
+            card.style.top = y + 'px';
+            card.dataset.personId = person.id;
+            card.dataset.type = type;
+
+            // Stocker l'objet person sur la carte
+            card.person = person;
+
+            // Fonction pour mettre à jour le contenu selon le zoom
+            const updateCardContent = () => {
+                const isCompact = currentZoom < 0.5;
+                const isMedium = currentZoom < 0.8;
+                
+                if (isCompact) {
+                    // Mode très compact : initiales seulement
+                    const initials = person.firstName.charAt(0) + person.lastName.charAt(0);
+                    card.innerHTML = `
+                        <div class="card-id-compact">${person.id}</div>
+                        <div class="card-name-compact">${initials}</div>
+                        <div class="card-status-compact">${person.isAlive ? '🟢' : '🔴'}</div>
+                        ${clickable ? '<div class="click-hint-compact">👆</div>' : ''}
+                    `;
+                } else if (isMedium) {
+                    // Mode moyen : nom court
+                    card.innerHTML = `
+                        <div class="card-id">ID: ${person.id}</div>
+                        <div class="card-name-medium">${person.firstName} ${person.lastName}</div>
+                        <div class="card-details-medium">
+                            <div>📅 ${person.birthDate ? new Date(person.birthDate).getFullYear() : 'N/A'}</div>
+                            <div>${person.isAlive ? '🟢 Vivant' : '🔴 Décédé'}</div>
+                        </div>
+                        ${clickable ? '<div class="click-hint">👆</div>' : ''}
+                    `;
+                } else {
+                    // Mode normal : toutes les informations
+                    card.innerHTML = `
+                        <div class="card-id">ID: ${person.id}</div>
+                        <div class="card-name">${person.fullName}</div>
+                        <div class="card-details">
+                            <div>📅 ${person.birthDate ? new Date(person.birthDate).getFullYear() : 'N/A'}</div>
+                            <div>📍 ${person.birthPlace || 'N/A'}</div>
+                            <div>${person.isAlive ? '🟢 Vivant' : '🔴 Décédé'}</div>
+                            ${person.deathDate ? `<div>💀 ${new Date(person.deathDate).getFullYear()}</div>` : ''}
+                        </div>
+                        ${clickable ? '<div class="click-hint">👆 Cliquer</div>' : ''}
+                    `;
+                }
+            };
+
+            // Mettre à jour le contenu initial
+            updateCardContent();
+
+            // Stocker la fonction de mise à jour pour pouvoir la rappeler
+            card.updateContent = updateCardContent;
+
+            // Ajouter l'événement de clic si la carte est cliquable
+            if (clickable) {
+                card.addEventListener('click', () => expandCardFamily(card));
+            }
+
+            return card;
+        }
+
+        // Fonction pour étendre la famille d'une carte
+        async function expandCardFamily(card) {
+            const person = card.person;
+            const familyData = card.familyData;
+
+            if (!familyData) {
+                console.log('🔍 Récupération des données familiales pour:', person.fullName);
+                try {
+                    const newFamilyData = await getCachedFamilyData(person.id);
+                    card.familyData = newFamilyData;
+                    await expandCardFamily(card);
+                } catch (error) {
+                    console.error('❌ Erreur lors de la récupération des données familiales:', error);
+                }
+                return;
+            }
+
+            console.log('🎯 Expansion de la famille pour:', person.fullName);
+
+            // Calculer les positions pour les parents (au-dessus)
+            const parentX = parseInt(card.style.left);
+            const parentY = parseInt(card.style.top);
+            
+            // Calculer l'espacement adaptatif basé sur le nombre total de cartes attendues
+            const totalCardsInLevel = familyData.parents ? familyData.parents.length : 0;
+            const maxCardsInNextLevel = totalCardsInLevel * 2; // Chaque parent peut avoir 2 parents
+            const cardWidth = 150; // Mise à jour pour correspondre à la nouvelle largeur des cartes
+            const minSpacing = 15; // Espacement minimum optimal entre cartes
+            const levelSpacing = Math.max(60, (maxCardsInNextLevel * cardWidth) / totalCardsInLevel + minSpacing);
+            
+            const levelHeight = 100; // Espacement vertical optimal entre niveaux
+            
+            console.log('📏 Calcul d\'espacement adaptatif:', {
+                totalCardsInLevel: totalCardsInLevel,
+                maxCardsInNextLevel: maxCardsInNextLevel,
+                levelSpacing: levelSpacing
+            });
+
+            // Créer les cartes des parents
+            if (familyData.parents && familyData.parents.length > 0) {
+                const parentCount = familyData.parents.length;
+                const cardWidth = 150; // Largeur des cartes mise à jour
+                
+                // Calculer l'espace total nécessaire de manière simple
+                const totalWidth = (parentCount - 1) * levelSpacing + cardWidth;
+                const startX = parentX + cardWidth/2 - totalWidth/2; // Centrer par rapport à la carte cliquée
+                
+                familyData.parents.forEach((parent, index) => {
+                    console.log(`🔍 Traitement du parent ${index + 1}/${parentCount}: ${parent.fullName} (ID: ${parent.id})`);
+                    
+                    // Vérifier si cette carte n'existe pas déjà
+                    const existingCard = treeCards.find(c => c.person.id === parent.id);
+                    if (!existingCard) {
+                        let x = startX + index * levelSpacing;
+                        let y = parentY - levelHeight;
+                        
+                        // Vérifier les chevauchements avec les cartes existantes
+                        let attempts = 0;
+                        while (attempts < 10) {
+                            const hasOverlap = treeCards.some(existingCard => {
+                                const existingX = parseInt(existingCard.style.left);
+                                const existingY = parseInt(existingCard.style.top);
+                                const cardWidth = 150;
+                                const cardHeight = 90;
+                                
+                                return Math.abs(x - existingX) < cardWidth && Math.abs(y - existingY) < cardHeight;
+                            });
+                            
+                            if (!hasOverlap) break;
+                            
+                            // Décaler la position si chevauchement
+                            x += 50;
+                            attempts++;
+                        }
+                        
+                        const parentCard = createInteractiveCard(parent, x, y, 'parent', true);
+                        document.getElementById('cardContainer').appendChild(parentCard);
+                        treeCards.push(parentCard);
+                        
+                        console.log(`Carte parent créée: ${parent.firstName} à (${x}, ${y})`);
+                        
+                        // Animer l'apparition
+                        setTimeout(() => {
+                            parentCard.classList.add('visible');
+                            // Redessiner les liens après l'animation
+                            setTimeout(() => {
+                                redrawFamilyLinks();
+                            }, 100);
+                        }, index * 200);
+                    } else {
+                        console.log(`Carte parent déjà existante: ${parent.firstName}`);
+                    }
+                });
+            }
+
+            // Les enfants sont exclus de l'expansion (seulement les parents)
+            if (familyData.children && familyData.children.length > 0) {
+                console.log(`Enfants exclus de l'expansion: ${familyData.children.map(c => c.firstName).join(', ')}`);
+            }
+
+            // Les frères et sœurs sont exclus de l'expansion
+            if (familyData.siblings && familyData.siblings.length > 0) {
+                console.log(`Frères et sœurs exclus: ${familyData.siblings.map(s => s.firstName).join(', ')}`);
+            }
+        }
+
+        // Fonction pour effacer la visualisation
+        function clearVisualization() {
+            // Effacer l'arbre SVG
+            const svg = document.getElementById('treeSvg');
+            svg.innerHTML = '';
+            
+            // Effacer les cartes et les liens
+            const cardContainer = document.getElementById('cardContainer');
+            cardContainer.innerHTML = '';
+            treeCards = [];
+            clearFamilyLinks();
+            
+            // Réinitialiser les boutons
+            document.getElementById('personSelect').value = '';
+            updateLoadButton();
+            
+            updateStatus('Visualisation effacée', false, false, true);
+        }
+
+        // Fonctions de zoom et de déplacement
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom * 1.1, 3);
+            updateViewport();
+        }
+        
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom / 1.1, 0.2);
+            updateViewport();
+        }
+        
+        function resetZoom() {
+            currentZoom = 1;
+            currentPanX = 0;
+            currentPanY = 0;
+            updateViewport();
+        }
+        
+        function updateViewport() {
+            const container = document.getElementById('cardContainer');
+            if (container) {
+                container.style.transform = `translate(${currentPanX}px, ${currentPanY}px) scale(${currentZoom})`;
+                document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+                
+                // Mettre à jour le contenu de toutes les cartes selon le zoom
+                treeCards.forEach(card => {
+                    if (card.updateContent) {
+                        card.updateContent();
+                    }
+                });
+                
+                // Redessiner les liens après le zoom/déplacement
+                setTimeout(() => {
+                    redrawFamilyLinks();
+                }, 50);
+            }
+        }
+        
+        // Gestion du déplacement par glisser-déposer
+        function setupCardContainerDrag() {
+            const container = document.getElementById('cardContainer');
+            if (!container) return;
+            
+            container.addEventListener('mousedown', (e) => {
+                if (e.target === container) {
+                    isDragging = true;
+                    dragStartX = e.clientX - currentPanX;
+                    dragStartY = e.clientY - currentPanY;
+                    container.style.cursor = 'grabbing';
+                }
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    currentPanX = e.clientX - dragStartX;
+                    currentPanY = e.clientY - dragStartY;
+                    updateViewport();
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    container.style.cursor = 'grab';
+                }
+            });
+        }
+        
+        // Gestion du zoom avec la molette (optimisé pour trackpad Mac)
+        function setupWheelZoom() {
+            const container = document.getElementById('cardContainer');
+            if (!container) return;
+            
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                
+                // Détecter si c'est un trackpad (deltaY plus petit) ou une molette
+                const isTrackpad = Math.abs(e.deltaY) < 10;
+                const sensitivity = isTrackpad ? 0.05 : 0.1;
+                
+                const delta = e.deltaY > 0 ? (1 - sensitivity) : (1 + sensitivity);
+                currentZoom = Math.max(0.2, Math.min(3, currentZoom * delta));
+                updateViewport();
+            });
+        }
+
+        // Fonction pour masquer/afficher le guide
+        function toggleLegend() {
+            const legend = document.getElementById('legendGuide');
+            if (legend) {
+                legend.classList.toggle('collapsed');
+                const button = legend.querySelector('.legend-toggle');
+                if (button) {
+                    button.textContent = legend.classList.contains('collapsed') ? '📋' : '✕';
+                    button.title = legend.classList.contains('collapsed') ? 'Afficher le guide' : 'Masquer le guide';
+                }
+            }
+        }
+        
         // Load persons on page load
         document.addEventListener('DOMContentLoaded', function() {
-            loadPersons();
+            console.log('🚀 Page chargée, initialisation...');
+            try {
+                loadPersons();
+                setupCardContainerDrag();
+                setupWheelZoom();
+                console.log('✅ Initialisation terminée');
+            } catch (error) {
+                console.error('❌ Erreur lors de l\'initialisation:', error);
+            }
         });
+        
+        // Fonctions pour le formulaire d'ajout de personne
+        function openAddPersonForm() {
+            document.getElementById('addPersonModal').style.display = 'block';
+            // Réinitialiser le formulaire
+            document.getElementById('addPersonForm').reset();
+            // Masquer la section des doublons
+            document.getElementById('duplicatesSection').style.display = 'none';
+            document.getElementById('confirmNoDuplicate').checked = false;
+        }
+        
+        function closeAddPersonForm() {
+            document.getElementById('addPersonModal').style.display = 'none';
+        }
+        
+        // Fermer le modal si on clique en dehors
+        window.onclick = function(event) {
+            const modal = document.getElementById('addPersonModal');
+            if (event.target == modal) {
+                closeAddPersonForm();
+            }
+        }
+        
+        async function checkDuplicates(formData) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons/check-duplicates`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (!response.ok) {
+                    return { hasDuplicates: false, duplicates: [] };
+                }
+                
+                const result = await response.json();
+                return result;
+            } catch (error) {
+                console.error('Erreur lors de la vérification des doublons:', error);
+                return { hasDuplicates: false, duplicates: [] };
+            }
+        }
+        
+        function displayDuplicates(duplicates) {
+            const duplicatesSection = document.getElementById('duplicatesSection');
+            const duplicatesList = document.getElementById('duplicatesList');
+            
+            if (!duplicates || duplicates.length === 0) {
+                duplicatesSection.style.display = 'none';
+                return;
+            }
+            
+            duplicatesList.innerHTML = '<ul style="margin: 0; padding-left: 20px;">';
+            duplicates.forEach(dup => {
+                const birthDateStr = dup.birthDate ? new Date(dup.birthDate).toLocaleDateString('fr-FR') : 'N/A';
+                duplicatesList.innerHTML += `
+                    <li style="margin-bottom: 8px;">
+                        <strong>${dup.fullName}</strong> (ID: ${dup.personId})
+                        ${dup.birthDate ? ` - Né(e) le ${birthDateStr}` : ''}
+                        ${dup.birthPlace ? ` - ${dup.birthPlace}` : ''}
+                        <br><small style="color: #856404;">Score de similarité: ${Math.round(dup.similarityScore * 100)}% - ${dup.matchReason}</small>
+                    </li>
+                `;
+            });
+            duplicatesList.innerHTML += '</ul>';
+            duplicatesSection.style.display = 'block';
+            document.getElementById('confirmNoDuplicate').checked = false;
+        }
+        
+        async function submitAddPersonForm(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            
+            try {
+                submitButton.disabled = true;
+                submitButton.textContent = '⏳ Vérification...';
+                
+                // Récupérer les données du formulaire
+                const formData = {
+                    firstName: document.getElementById('firstName').value.trim(),
+                    lastName: document.getElementById('lastName').value.trim(),
+                    middleName: document.getElementById('middleName').value.trim() || null,
+                    birthDate: document.getElementById('birthDate').value || null,
+                    deathDate: document.getElementById('deathDate').value || null,
+                    birthPlace: document.getElementById('birthPlace').value.trim() || null,
+                    deathPlace: document.getElementById('deathPlace').value.trim() || null,
+                    profession: document.getElementById('profession').value.trim() || null,
+                    marriageDate: document.getElementById('marriageDate').value || null,
+                    marriagePlace: document.getElementById('marriagePlace').value.trim() || null,
+                    deathStatus: document.getElementById('deathStatus').value || null,
+                    photoUrl: document.getElementById('photoUrl').value.trim() || null,
+                    biography: document.getElementById('biography').value.trim() || null,
+                    gender: document.getElementById('gender').value,
+                    isAlive: document.getElementById('isAlive').checked
+                };
+                
+                // Validation
+                if (!formData.firstName || !formData.lastName) {
+                    throw new Error('Le prénom et le nom sont obligatoires');
+                }
+                
+                // Convertir les dates au format ISO si présentes
+                if (formData.birthDate) {
+                    formData.birthDate = new Date(formData.birthDate + 'T00:00:00').toISOString();
+                }
+                if (formData.deathDate) {
+                    formData.deathDate = new Date(formData.deathDate + 'T00:00:00').toISOString();
+                }
+                if (formData.marriageDate) {
+                    formData.marriageDate = new Date(formData.marriageDate + 'T00:00:00').toISOString();
+                }
+                
+                // Vérifier les doublons
+                const duplicatesResult = await checkDuplicates(formData);
+                
+                if (duplicatesResult.hasDuplicates && duplicatesResult.duplicates.length > 0) {
+                    displayDuplicates(duplicatesResult.duplicates);
+                    
+                    // Vérifier si l'utilisateur a confirmé que ce n'est pas un doublon
+                    if (!document.getElementById('confirmNoDuplicate').checked) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalText;
+                        updateStatus('⚠️ Veuillez vérifier les doublons potentiels et confirmer si nécessaire', false, false, false);
+                        return;
+                    }
+                } else {
+                    document.getElementById('duplicatesSection').style.display = 'none';
+                }
+                
+                submitButton.textContent = '⏳ Enregistrement...';
+                
+                // Envoyer la requête
+                const response = await fetch(`${API_BASE_URL}/persons`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'Erreur inconnue' }));
+                    throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+                }
+                
+                const newPerson = await response.json();
+                
+                // Afficher un message de succès
+                updateStatus(`✅ Personne "${newPerson.fullName}" créée avec succès ! (ID: ${newPerson.id})`, false, false, true);
+                
+                // Fermer le modal
+                closeAddPersonForm();
+                
+                // Recharger la liste des personnes
+                await loadPersons();
+                
+            } catch (error) {
+                console.error('Erreur lors de la création:', error);
+                updateStatus(`❌ Erreur: ${error.message}`, false, true, false);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            }
+        }
     </script>
+    
+    <!-- Modal pour ajouter une personne -->
+    <div id="addPersonModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ Ajouter une nouvelle personne</h2>
+                <span class="close" onclick="closeAddPersonForm()">&times;</span>
+            </div>
+            <form id="addPersonForm" onsubmit="submitAddPersonForm(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">Prénom <span class="required">*</span></label>
+                        <input type="text" id="firstName" name="firstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Nom <span class="required">*</span></label>
+                        <input type="text" id="lastName" name="lastName" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="middleName">Nom de famille (optionnel)</label>
+                    <input type="text" id="middleName" name="middleName">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gender">Genre</label>
+                        <select id="gender" name="gender">
+                            <option value="M">Homme</option>
+                            <option value="F">Femme</option>
+                            <option value="Other">Autre</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="isAlive">Statut</label>
+                        <div style="margin-top: 10px;">
+                            <input type="checkbox" id="isAlive" name="isAlive" checked>
+                            <label for="isAlive" style="display: inline; margin-left: 5px; font-weight: normal;">Vivant(e)</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="birthDate">Date de naissance</label>
+                        <input type="date" id="birthDate" name="birthDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="deathDate">Date de décès</label>
+                        <input type="date" id="deathDate" name="deathDate">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="birthPlace">Lieu de naissance</label>
+                        <input type="text" id="birthPlace" name="birthPlace" placeholder="Ex: Paris, France">
+                    </div>
+                    <div class="form-group">
+                        <label for="deathPlace">Lieu de décès</label>
+                        <input type="text" id="deathPlace" name="deathPlace" placeholder="Ex: Paris, France">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="profession">Profession</label>
+                    <input type="text" id="profession" name="profession" placeholder="Ex: Officier mécanicien, Marin, etc.">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="marriageDate">Date de mariage</label>
+                        <input type="date" id="marriageDate" name="marriageDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="marriagePlace">Lieu de mariage</label>
+                        <input type="text" id="marriagePlace" name="marriagePlace" placeholder="Ex: Cancale (35)">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="deathStatus">Statut de décès</label>
+                    <select id="deathStatus" name="deathStatus">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="Décédé">Décédé</option>
+                        <option value="Mort en Mer">Mort en Mer</option>
+                        <option value="En Mer">En Mer</option>
+                        <option value="Disparu">Disparu</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="photoUrl">URL de la photo</label>
+                    <input type="url" id="photoUrl" name="photoUrl" placeholder="https://exemple.com/photo.jpg">
+                </div>
+                
+                <div class="form-group">
+                    <label for="biography">Biographie</label>
+                    <textarea id="biography" name="biography" placeholder="Informations supplémentaires sur la personne..."></textarea>
+                </div>
+                
+                <!-- Section pour afficher les doublons potentiels -->
+                <div id="duplicatesSection" style="display: none; margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
+                    <h4 style="margin-top: 0; color: #856404;">⚠️ Doublons potentiels détectés</h4>
+                    <div id="duplicatesList"></div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="confirmNoDuplicate" style="margin-right: 8px;">
+                            <span>Je confirme que ce n'est pas un doublon</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeAddPersonForm()">Annuler</button>
+                    <button type="submit" class="btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

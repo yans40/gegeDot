@@ -26,31 +26,30 @@ Ce projet pédagogique vise à apprendre les différentes strates de prise de d�
 ```
 
 ### Services Backend (.NET Core)
-- **PersonService** : Gestion des personnes
+- **PersonService** : Gestion des personnes avec normalisation automatique
+- **DataNormalizationService** : Normalisation des noms, lieux, dates, professions
+- **DuplicateDetectionService** : Détection de doublons avec algorithme de similarité
 - **FamilyService** : Gestion des relations familiales
 - **TreeService** : Construction et visualisation des arbres
-- **AuthService** : Authentification (Phase 2)
 
 ### Frontend
-- **React + TypeScript** : Interface utilisateur moderne
-- **Material-UI** : Composants UI
-- **D3.js** : Visualisation des arbres généalogiques
+- **HTML5/CSS3/JavaScript** : Interface interactive actuelle
+- **D3.js** : Visualisation des arbres généalogiques (optionnel)
+- **Vue Carte Éventail** : Visualisation progressive par clic
 
 ## 🚀 Technologies
 
 ### Backend
-- .NET 8 Core
+- .NET 9 Core
 - Entity Framework Core
-- MySQL
+- MySQL 8.0
 - Swagger/OpenAPI
+- AutoMapper
 - Docker
 
 ### Frontend
-- React 18
-- TypeScript
-- Material-UI
-- D3.js
-- Axios
+- HTML5/CSS3/JavaScript vanilla
+- D3.js (pour visualisations avancées)
 
 ### DevOps
 - Docker & Docker Compose
@@ -60,34 +59,40 @@ Ce projet pédagogique vise à apprendre les différentes strates de prise de d�
 
 ## 📋 Roadmap
 
-### Phase 1 - MVP (2-3 semaines)
+### ✅ Phase Alpha - MVP
 - [x] Architecture et documentation
-- [ ] API basique (CRUD Personnes)
-- [ ] Frontend simple avec arbre basique
-- [ ] Base de données locale
-- [ ] Tests unitaires
+- [x] API basique (CRUD Personnes)
+- [x] Base de données MySQL
+- [x] Frontend HTML/JavaScript
 
-### Phase 2 - Amélioration (1-2 mois)
-- [ ] Authentification JWT
-- [ ] Upload de photos
-- [ ] Export PDF
-- [ ] Interface plus riche
-- [ ] Recherche avancée
+### ✅ Phase Beta - Consolidation
+- [x] Visualisation arbre familial
+- [x] Gestion des relations
+- [x] Interface utilisateur améliorée
 
-### Phase 3 - Production (2-3 mois)
-- [ ] Déploiement cloud
-- [ ] Performance optimisée
-- [ ] Tests automatisés
-- [ ] Monitoring
-- [ ] Documentation API
+### ✅ Phase Charlie - Vue Éventail
+- [x] Vue carte éventail interactive
+- [x] Système de zoom et navigation
+- [x] Liens familiaux simples
+- [x] Design moderne
+
+### 🔄 Phase Delta - En Cours
+- [x] Extension du modèle de données (Profession, Mariage, etc.)
+- [x] Service de normalisation des données
+- [x] Service de détection de doublons
+- [x] Formulaire d'ajout enrichi
+- [ ] Vue éventail professionnelle
+- [ ] Relations complexes
+- [ ] Recherche et filtrage avancés
+- [ ] Export et partage (PDF, GEDCOM)
 
 ## 🛠️ Installation et Développement
 
 ### Prérequis
-- .NET 8 SDK
-- Node.js 18+
-- MySQL 8.0+
-- Docker (optionnel)
+- .NET 9 SDK
+- Python 3 (pour serveur frontend)
+- MySQL 8.0+ (via Docker)
+- Docker Desktop
 
 ### Démarrage Rapide
 
@@ -97,24 +102,33 @@ git clone https://github.com/votre-username/gegeDot.git
 cd gegeDot
 ```
 
-2. **Backend**
+2. **Démarrer MySQL et phpMyAdmin (Docker)**
 ```bash
-cd backend
-dotnet restore
-dotnet run
+docker-compose up -d
 ```
 
-3. **Frontend**
+3. **Exécuter la migration SQL** (si nouveaux champs)
+```bash
+mysql -h 127.0.0.1 -P 3306 -u root -ppassword gegeDot < scripts/migration_add_person_fields.sql
+```
+
+4. **Backend**
+```bash
+cd backend/src/GegeDot.API
+dotnet run --urls=http://localhost:5001
+```
+
+5. **Frontend**
 ```bash
 cd frontend
-npm install
-npm start
+python3 -m http.server 3004 --bind 127.0.0.1
 ```
 
-4. **Avec Docker**
-```bash
-docker-compose up
-```
+6. **Accéder à l'application**
+- Frontend : http://localhost:3004/hierarchical-tree-beta-fixed.html
+- Backend API : http://localhost:5001
+- Swagger : http://localhost:5001/swagger
+- phpMyAdmin : http://localhost:8080
 
 ## 📊 Base de Données
 
@@ -133,18 +147,21 @@ DATABASE_CONNECTION_STRING=Server=localhost;Database=gegeDot;Uid=root;Pwd=passwo
 JWT_SECRET=your-secret-key
 
 # Frontend
-REACT_APP_API_URL=http://localhost:5000
+API_BASE_URL=http://localhost:5001/api
 ```
 
 ## 📚 Documentation API
 
-L'API est documentée avec Swagger disponible à : `http://localhost:5000/swagger`
+L'API est documentée avec Swagger disponible à : `http://localhost:5001/swagger`
 
 ### Endpoints Principaux
 - `GET /api/persons` - Liste des personnes
-- `POST /api/persons` - Créer une personne
-- `GET /api/trees/{id}` - Obtenir un arbre généalogique
-- `POST /api/relationships` - Créer une relation
+- `GET /api/persons/{id}` - Obtenir une personne
+- `GET /api/persons/{id}/family` - Obtenir l'arbre familial
+- `POST /api/persons` - Créer une personne (avec normalisation automatique)
+- `POST /api/persons/check-duplicates` - Vérifier les doublons potentiels
+- `PUT /api/persons/{id}` - Mettre à jour une personne
+- `DELETE /api/persons/{id}` - Supprimer une personne
 
 ## 🚀 Déploiement
 

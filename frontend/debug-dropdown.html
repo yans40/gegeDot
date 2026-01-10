@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Dropdown - GegeDot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background: #667eea;
+        }
+        
+        button:hover {
+            background: #5a6fd8;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Dropdown - GegeDot</h1>
+        
+        <div id="status" class="status info" style="display: none;"></div>
+        
+        <h3>Test API</h3>
+        <button onclick="testAPI()">Test API /persons</button>
+        <button onclick="testCORS()">Test CORS</button>
+        
+        <h3>Test Dropdown</h3>
+        <button onclick="loadPersons()">Charger les personnes</button>
+        <button onclick="clearDropdown()">Vider le dropdown</button>
+        
+        <select id="personSelect">
+            <option value="">Sélectionner une personne...</option>
+        </select>
+        
+        <h3>Logs</h3>
+        <div id="logs" style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; max-height: 300px; overflow-y: auto;"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        
+        function log(message) {
+            const logsDiv = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logsDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+            log(`STATUS: ${message}`);
+        }
+        
+        async function testAPI() {
+            log('🧪 Test de l\'API /persons...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                log(`📡 Réponse reçue: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const persons = await response.json();
+                log(`✅ ${persons.length} personnes récupérées`);
+                log(`📋 Première personne: ${persons[0]?.fullName || 'Aucune'}`);
+                
+                updateStatus(`API fonctionne - ${persons.length} personnes`, 'success');
+            } catch (error) {
+                log(`❌ Erreur API: ${error.message}`);
+                updateStatus(`Erreur API: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testCORS() {
+            log('🌐 Test CORS...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                log(`📡 CORS Response: ${response.status}`);
+                updateStatus('CORS OK', 'success');
+            } catch (error) {
+                log(`❌ Erreur CORS: ${error.message}`);
+                updateStatus(`Erreur CORS: ${error.message}`, 'error');
+            }
+        }
+        
+        async function loadPersons() {
+            log('🔄 Chargement des personnes dans le dropdown...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                log(`📡 Réponse: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const persons = await response.json();
+                log(`👥 ${persons.length} personnes reçues`);
+                
+                const select = document.getElementById('personSelect');
+                log(`🎯 Select element trouvé: ${!!select}`);
+                
+                // Vider le dropdown
+                select.innerHTML = '<option value="">Sélectionner une personne...</option>';
+                log('🗑️ Dropdown vidé');
+                
+                // Ajouter les personnes
+                persons.forEach((person, index) => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.fullName} (${person.gender})`;
+                    select.appendChild(option);
+                    if (index < 3) { // Log seulement les 3 premières
+                        log(`➕ Ajouté: ${person.fullName}`);
+                    }
+                });
+                
+                log(`✅ ${persons.length} options ajoutées au dropdown`);
+                updateStatus(`${persons.length} personnes chargées`, 'success');
+            } catch (error) {
+                log(`❌ Erreur: ${error.message}`);
+                updateStatus(`Erreur: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearDropdown() {
+            const select = document.getElementById('personSelect');
+            select.innerHTML = '<option value="">Sélectionner une personne...</option>';
+            log('🗑️ Dropdown vidé manuellement');
+            updateStatus('Dropdown vidé', 'info');
+        }
+        
+        // Test automatique au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Page chargée');
+            setTimeout(() => {
+                log('⏰ Test automatique dans 2 secondes...');
+                testAPI();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+

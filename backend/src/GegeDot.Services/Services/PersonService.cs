@@ -10,11 +10,16 @@ public class PersonService : IPersonService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly IDataNormalizationService _normalizationService;
 
-    public PersonService(IUnitOfWork unitOfWork, IMapper mapper)
+    public PersonService(
+        IUnitOfWork unitOfWork, 
+        IMapper mapper,
+        IDataNormalizationService normalizationService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _normalizationService = normalizationService;
     }
 
     public async Task<IEnumerable<PersonDto>> GetAllPersonsAsync()
@@ -64,7 +69,13 @@ public class PersonService : IPersonService
 
     public async Task<PersonDto> CreatePersonAsync(CreatePersonDto createPersonDto)
     {
-        var person = _mapper.Map<Person>(createPersonDto);
+        // Normaliser les données avant création
+        var normalizedDto = NormalizePersonDto(createPersonDto);
+        
+        var person = _mapper.Map<Person>(normalizedDto);
+        person.CreatedAt = DateTime.UtcNow;
+        person.UpdatedAt = DateTime.UtcNow;
+        
         var createdPerson = await _unitOfWork.Persons.AddAsync(person);
         return _mapper.Map<PersonDto>(createdPerson);
     }
@@ -75,9 +86,64 @@ public class PersonService : IPersonService
         if (existingPerson == null)
             throw new ArgumentException($"Person with ID {id} not found");
 
-        _mapper.Map(updatePersonDto, existingPerson);
+        // Normaliser les données avant mise à jour
+        var normalizedDto = NormalizeUpdatePersonDto(updatePersonDto);
+        
+        _mapper.Map(normalizedDto, existingPerson);
+        existingPerson.UpdatedAt = DateTime.UtcNow;
+        
         var updatedPerson = await _unitOfWork.Persons.UpdateAsync(existingPerson);
         return _mapper.Map<PersonDto>(updatedPerson);
+    }
+
+    /// <summary>
+    /// Normalise les données d'un CreatePersonDto
+    /// </summary>
+    private CreatePersonDto NormalizePersonDto(CreatePersonDto dto)
+    {
+        return new CreatePersonDto
+        {
+            FirstName = _normalizationService.NormalizeName(dto.FirstName),
+            LastName = _normalizationService.NormalizeName(dto.LastName),
+            MiddleName = _normalizationService.NormalizeName(dto.MiddleName),
+            BirthPlace = _normalizationService.NormalizePlace(dto.BirthPlace),
+            DeathPlace = _normalizationService.NormalizePlace(dto.DeathPlace),
+            MarriagePlace = _normalizationService.NormalizePlace(dto.MarriagePlace),
+            Profession = _normalizationService.NormalizeProfession(dto.Profession),
+            BirthDate = dto.BirthDate,
+            DeathDate = dto.DeathDate,
+            MarriageDate = dto.MarriageDate,
+            PhotoUrl = dto.PhotoUrl,
+            Biography = dto.Biography,
+            Gender = dto.Gender,
+            IsAlive = dto.IsAlive,
+            DeathStatus = dto.DeathStatus
+        };
+    }
+
+    /// <summary>
+    /// Normalise les données d'un UpdatePersonDto
+    /// </summary>
+    private UpdatePersonDto NormalizeUpdatePersonDto(UpdatePersonDto dto)
+    {
+        return new UpdatePersonDto
+        {
+            FirstName = _normalizationService.NormalizeName(dto.FirstName),
+            LastName = _normalizationService.NormalizeName(dto.LastName),
+            MiddleName = _normalizationService.NormalizeName(dto.MiddleName),
+            BirthPlace = _normalizationService.NormalizePlace(dto.BirthPlace),
+            DeathPlace = _normalizationService.NormalizePlace(dto.DeathPlace),
+            MarriagePlace = _normalizationService.NormalizePlace(dto.MarriagePlace),
+            Profession = _normalizationService.NormalizeProfession(dto.Profession),
+            BirthDate = dto.BirthDate,
+            DeathDate = dto.DeathDate,
+            MarriageDate = dto.MarriageDate,
+            PhotoUrl = dto.PhotoUrl,
+            Biography = dto.Biography,
+            Gender = dto.Gender,
+            IsAlive = dto.IsAlive,
+            DeathStatus = dto.DeathStatus
+        };
     }
 
     public async Task<bool> DeletePersonAsync(int id)

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Animation Éventail</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 20px auto;
+        }
+        
+        .test-card {
+            position: absolute;
+            width: 150px;
+            height: 200px;
+            background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+            border-radius: 12px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .test-card.animate {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+        
+        .test-card:hover {
+            transform: scale(1.05) translateY(-5px);
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #6366F1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        
+        button:hover {
+            background: #4F46E5;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Animation Éventail</h1>
+    
+    <button onclick="testAnimation()">Tester l'Animation</button>
+    <button onclick="resetCards()">Reset</button>
+    
+    <div class="container" id="container">
+        <!-- Les cartes seront ajoutées ici -->
+    </div>
+
+    <script>
+        function createTestCard(text, x, y) {
+            const card = document.createElement('div');
+            card.className = 'test-card';
+            card.style.left = x + 'px';
+            card.style.top = y + 'px';
+            card.textContent = text;
+            return card;
+        }
+        
+        function testAnimation() {
+            const container = document.getElementById('container');
+            container.innerHTML = '';
+            
+            const centerX = 400;
+            const centerY = 300;
+            
+            // Carte centrale
+            const mainCard = createTestCard('CENTRE', centerX - 75, centerY - 100);
+            container.appendChild(mainCard);
+            
+            // Cartes en éventail
+            const cards = [
+                { text: 'CARTE 1', x: centerX - 200, y: centerY - 150 },
+                { text: 'CARTE 2', x: centerX - 100, y: centerY - 200 },
+                { text: 'CARTE 3', x: centerX + 50, y: centerY - 200 },
+                { text: 'CARTE 4', x: centerX + 150, y: centerY - 150 },
+                { text: 'CARTE 5', x: centerX - 200, y: centerY + 50 },
+                { text: 'CARTE 6', x: centerX + 150, y: centerY + 50 }
+            ];
+            
+            cards.forEach((cardData, index) => {
+                const card = createTestCard(cardData.text, cardData.x, cardData.y);
+                container.appendChild(card);
+                
+                // Animation séquentielle
+                setTimeout(() => {
+                    card.classList.add('animate');
+                }, 200 + index * 150);
+            });
+            
+            // Animation de la carte centrale
+            setTimeout(() => {
+                mainCard.classList.add('animate');
+            }, 100);
+        }
+        
+        function resetCards() {
+            document.getElementById('container').innerHTML = '';
+        }
+        
+        // Test automatique au chargement
+        window.addEventListener('load', () => {
+            setTimeout(testAnimation, 500);
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+

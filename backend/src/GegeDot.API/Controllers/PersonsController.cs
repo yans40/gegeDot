@@ -1,3 +1,5 @@
+using AutoMapper;
+using GegeDot.Core.Entities;
 using GegeDot.Services.DTOs;
 using GegeDot.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -9,11 +11,19 @@ namespace GegeDot.API.Controllers;
 public class PersonsController : ControllerBase
 {
     private readonly IPersonService _personService;
+    private readonly IDuplicateDetectionService _duplicateDetectionService;
+    private readonly IMapper _mapper;
     private readonly ILogger<PersonsController> _logger;
 
-    public PersonsController(IPersonService personService, ILogger<PersonsController> logger)
+    public PersonsController(
+        IPersonService personService, 
+        IDuplicateDetectionService duplicateDetectionService,
+        IMapper mapper,
+        ILogger<PersonsController> logger)
     {
         _personService = personService;
+        _duplicateDetectionService = duplicateDetectionService;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -148,6 +158,36 @@ public class PersonsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erreur lors de la recherche de personnes avec le terme {SearchTerm}", q);
+            return StatusCode(500, "Erreur interne du serveur");
+        }
+    }
+
+    /// <summary>
+    /// Vérifie les doublons potentiels avant création
+    /// </summary>
+    [HttpPost("check-duplicates")]
+    public async Task<ActionResult<object>> CheckDuplicates(CreatePersonDto createPersonDto)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Mapper le DTO vers une entité Person temporaire pour la détection
+            var tempPerson = _mapper.Map<Person>(createPersonDto);
+
+            var duplicates = await _duplicateDetectionService.FindDuplicatesAsync(tempPerson);
+
+            return Ok(new
+            {
+                hasDuplicates = duplicates.Any(),
+                duplicates = duplicates,
+                count = duplicates.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la vérification des doublons");
             return StatusCode(500, "Erreur interne du serveur");
         }
     }

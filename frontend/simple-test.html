@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Test</title>
+</head>
+<body>
+    <h1>Test Simple</h1>
+    <button onclick="test()">Test API</button>
+    <div id="result"></div>
+
+    <script>
+        async function test() {
+            try {
+                console.log('Testing API...');
+                const response = await fetch('http://localhost:5001/api/persons');
+                console.log('Response:', response);
+                const data = await response.json();
+                console.log('Data:', data);
+                document.getElementById('result').innerHTML = `Found ${data.length} persons`;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test automatique
+        window.onload = test;
+    </script>
+</body>
+</html>
+
+
+
+
+

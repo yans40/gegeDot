@@ -26,6 +26,17 @@ public class Person
     [MaxLength(200)]
     public string? DeathPlace { get; set; }
     
+    [MaxLength(100)]
+    public string? Profession { get; set; }
+    
+    public DateTime? MarriageDate { get; set; }
+    
+    [MaxLength(200)]
+    public string? MarriagePlace { get; set; }
+    
+    [MaxLength(50)]
+    public string? DeathStatus { get; set; } // "Mort en Mer", "Décédé", etc.
+    
     [MaxLength(500)]
     public string? PhotoUrl { get; set; }
     

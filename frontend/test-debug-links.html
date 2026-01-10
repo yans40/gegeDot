@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Debug Links - Diagnostic Complet</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .link { stroke-opacity: 0; stroke-width: 2; stroke: #333; }
+        .link.visible { stroke-opacity: 0.8; }
+        .node { cursor: pointer; }
+        .node circle { fill: #4A90E2; stroke: #333; stroke-width: 2; }
+        .node text { font-size: 12px; text-anchor: middle; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Test Debug Links - Diagnostic Complet</h1>
+    <div class="debug">
+        <h3>Étapes du test :</h3>
+        <ol>
+            <li>Vérifier que les liens sont créés</li>
+            <li>Vérifier les attributs data-source et data-target</li>
+            <li>Vérifier la logique de filtrage</li>
+            <li>Vérifier l'application de la classe 'visible'</li>
+        </ol>
+    </div>
+    
+    <svg width="600" height="400"></svg>
+    
+    <div class="debug">
+        <h3>Logs de debug :</h3>
+        <div id="debugLogs"></div>
+    </div>
+
+    <script>
+        const svg = d3.select('svg');
+        const g = svg.append('g');
+        const debugDiv = d3.select('#debugLogs');
+
+        function log(message) {
+            console.log(message);
+            debugDiv.append('div').text(message);
+        }
+
+        // Données de test
+        const nodes = [
+            { id: 1, name: 'Charles', x: 100, y: 100 },
+            { id: 2, name: 'Elizabeth', x: 200, y: 100 },
+            { id: 3, name: 'Philip', x: 150, y: 200 }
+        ];
+
+        const links = [
+            { source: 1, target: 2, type: 'marriage' },
+            { source: 1, target: 3, type: 'parent-child' },
+            { source: 2, target: 3, type: 'parent-child' }
+        ];
+
+        log('🔍 Données de test créées:');
+        log(`  - Nœuds: ${nodes.length}`);
+        log(`  - Liens: ${links.length}`);
+
+        // Créer les liens
+        const linkElements = g.selectAll('.link')
+            .data(links)
+            .enter().append('line')
+            .attr('class', 'link')
+            .attr('data-source', d => {
+                log(`🔗 Lien créé - source: ${d.source}, target: ${d.target}`);
+                return d.source;
+            })
+            .attr('data-target', d => d.target)
+            .attr('x1', d => nodes.find(n => n.id === d.source).x)
+            .attr('y1', d => nodes.find(n => n.id === d.source).y)
+            .attr('x2', d => nodes.find(n => n.id === d.target).x)
+            .attr('y2', d => nodes.find(n => n.id === d.target).y);
+
+        log(`✅ ${linkElements.size()} liens créés dans le DOM`);
+
+        // Vérifier les attributs
+        linkElements.each(function(d, i) {
+            const element = d3.select(this);
+            const source = element.attr('data-source');
+            const target = element.attr('data-target');
+            log(`🔍 Lien ${i}: data-source="${source}", data-target="${target}"`);
+        });
+
+        // Créer les nœuds
+        const nodeElements = g.selectAll('.node')
+            .data(nodes)
+            .enter().append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `translate(${d.x},${d.y})`);
+
+        nodeElements.append('circle').attr('r', 20);
+        nodeElements.append('text').attr('dy', 5).text(d => d.name);
+
+        log(`✅ ${nodeElements.size()} nœuds créés dans le DOM`);
+
+        // Test de la logique de filtrage
+        function testFiltering(nodeId) {
+            log(`\n🧪 Test de filtrage pour le nœud ID: ${nodeId}`);
+            
+            const filteredLinks = d3.selectAll('.link')
+                .filter(function() {
+                    const sourceId = d3.select(this).attr('data-source');
+                    const targetId = d3.select(this).attr('data-target');
+                    const isConnected = sourceId == nodeId || targetId == nodeId;
+                    log(`  - Lien ${sourceId} -> ${targetId}: ${isConnected ? 'CONNECTÉ' : 'non connecté'}`);
+                    return isConnected;
+                });
+            
+            log(`🎯 Résultat: ${filteredLinks.size()} liens connectés trouvés`);
+            return filteredLinks;
+        }
+
+        // Événements de survol
+        nodeElements.on('mouseover', function(event, d) {
+            log(`\n🔄 SURVOL de: ${d.name} (ID: ${d.id})`);
+            
+            // Test de filtrage
+            const connectedLinks = testFiltering(d.id);
+            
+            // Appliquer la classe visible
+            log(`🎨 Application de la classe 'visible' à ${connectedLinks.size()} liens`);
+            connectedLinks.classed('visible', true);
+            
+            // Vérifier que la classe a été appliquée
+            connectedLinks.each(function() {
+                const element = d3.select(this);
+                const hasVisibleClass = element.classed('visible');
+                log(`  - Classe 'visible' appliquée: ${hasVisibleClass}`);
+            });
+        });
+
+        nodeElements.on('mouseout', function() {
+            log(`\n👋 FIN DU SURVOL`);
+            log(`🎨 Suppression de la classe 'visible' de tous les liens`);
+            d3.selectAll('.link').classed('visible', false);
+        });
+
+        log('\n✅ Test initialisé - Survolez les nœuds pour voir les logs détaillés');
+    </script>
+</body>
+</html>
+
+
+
+
+
+

@@ -33,6 +33,8 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Services
 builder.Services.AddScoped<IPersonService, PersonService>();
+builder.Services.AddScoped<IDataNormalizationService, DataNormalizationService>();
+builder.Services.AddScoped<IDuplicateDetectionService, DuplicateDetectionService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(GegeDot.Services.Mappings.MappingProfile));
@@ -42,7 +44,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004")
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004", "http://localhost:3005")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tree Card View - Arbre Généalogique Classique</title>
+    <style>
+        :root {
+            --primary: #6366F1;
+            --secondary: #8B5CF6;
+            --accent: #F59E0B;
+            --success: #10B981;
+            --info: #06B6D4;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --light: #F8FAFC;
+            --dark: #1E293B;
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --subtle-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        .header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 20px 0;
+            box-shadow: var(--subtle-shadow);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .header h1 {
+            text-align: center;
+            color: var(--primary);
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            text-align: center;
+            color: var(--dark);
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+
+        .controls {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 1200px;
+            border-radius: 15px;
+            box-shadow: var(--subtle-shadow);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .person-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .person-selector label {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .person-selector select {
+            padding: 10px 15px;
+            border: 2px solid var(--glass-border);
+            border-radius: 10px;
+            background: var(--glass-bg);
+            color: var(--dark);
+            font-size: 14px;
+            min-width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .person-selector select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .controls button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--subtle-shadow);
+        }
+
+        .controls button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+        }
+
+        .controls button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .visualization-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            margin: 20px auto;
+            max-width: 1400px;
+            border-radius: 15px;
+            box-shadow: var(--subtle-shadow);
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            min-height: 600px;
+            position: relative;
+            overflow: auto;
+        }
+
+        /* Styles pour les cartes d'arbre généalogique */
+        .tree-card {
+            position: absolute;
+            width: 180px;
+            min-height: 120px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .tree-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            z-index: 20;
+        }
+
+        .tree-card .card-id {
+            position: absolute;
+            top: 5px;
+            left: 8px;
+            font-weight: bold;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .tree-card .card-name {
+            font-weight: bold;
+            font-size: 13px;
+            margin: 15px 0 8px 0;
+            color: #333;
+            text-align: center;
+        }
+
+        .tree-card .card-details {
+            font-size: 10px;
+            color: #666;
+            line-height: 1.3;
+        }
+
+        .tree-card .card-details div {
+            margin-bottom: 2px;
+        }
+
+        /* Styles pour les branches d'arbre */
+        .tree-branch {
+            position: absolute;
+            background: #333;
+            z-index: 5;
+        }
+
+        .tree-branch.horizontal {
+            height: 3px;
+        }
+
+        .tree-branch.vertical {
+            width: 3px;
+        }
+
+        .tree-branch.curved {
+            background: none;
+            border: 3px solid #333;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Styles pour les feuilles décoratives */
+        .tree-leaf {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #4CAF50;
+            border-radius: 50% 0;
+            transform: rotate(45deg);
+            z-index: 6;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 20px;
+            color: var(--dark);
+            font-size: 1.1rem;
+        }
+
+        .status-message.success {
+            color: var(--success);
+        }
+
+        .status-message.error {
+            color: var(--danger);
+        }
+
+        .status-message.loading {
+            color: var(--info);
+        }
+
+        /* Animation pour l'apparition des cartes */
+        .tree-card {
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tree-card.visible {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .person-selector {
+                justify-content: center;
+            }
+            
+            .tree-card {
+                width: 150px;
+                min-height: 100px;
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌳 Tree Card View</h1>
+        <p>Visualisation d'Arbre Généalogique Classique</p>
+    </div>
+
+    <div class="controls">
+        <div class="person-selector">
+            <label for="personSelect">👤 Sélectionner une personne :</label>
+            <select id="personSelect">
+                <option value="">-- Choisir une personne --</option>
+            </select>
+        </div>
+        <button id="loadTreeBtn" onclick="loadTreeView()" disabled>
+            🌳 Charger l'Arbre
+        </button>
+        <button id="clearBtn" onclick="clearTree()">
+            🗑️ Effacer
+        </button>
+    </div>
+
+    <div class="visualization-container" id="treeContainer">
+        <div class="status-message" id="statusMessage">
+            Sélectionnez une personne pour commencer
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        let currentFamilyData = null;
+        let treeCards = [];
+        let treeBranches = [];
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPersons();
+            updateLoadButton();
+            
+            // Écouter les changements de sélection
+            document.getElementById('personSelect').addEventListener('change', updateLoadButton);
+        });
+
+        // Charger la liste des personnes
+        async function loadPersons() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                
+                const persons = await response.json();
+                const select = document.getElementById('personSelect');
+                
+                // Vider le select
+                select.innerHTML = '<option value="">-- Choisir une personne --</option>';
+                
+                // Ajouter les personnes
+                persons.forEach(person => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.firstName} ${person.lastName}`;
+                    select.appendChild(option);
+                });
+                
+                updateStatus('Personnes chargées avec succès', 'success');
+            } catch (error) {
+                console.error('Erreur lors du chargement des personnes:', error);
+                updateStatus('Erreur lors du chargement des personnes', 'error');
+            }
+        }
+
+        // Mettre à jour le bouton de chargement
+        function updateLoadButton() {
+            const select = document.getElementById('personSelect');
+            const loadBtn = document.getElementById('loadTreeBtn');
+            loadBtn.disabled = !select.value;
+        }
+
+        // Charger la vue arbre
+        async function loadTreeView() {
+            const selectedPersonId = document.getElementById('personSelect').value;
+            if (!selectedPersonId) return;
+
+            updateStatus('Chargement de l\'arbre familial...', 'loading');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons/${selectedPersonId}/family`);
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+
+                const familyData = await response.json();
+                currentFamilyData = familyData;
+                
+                renderTreeView(familyData);
+                updateStatus(`Arbre familial chargé pour ${familyData.person.firstName} ${familyData.person.lastName}`, 'success');
+            } catch (error) {
+                console.error('Erreur lors du chargement de l\'arbre:', error);
+                updateStatus('Erreur lors du chargement de l\'arbre familial', 'error');
+            }
+        }
+
+        // Rendre la vue arbre
+        function renderTreeView(familyData) {
+            const container = document.getElementById('treeContainer');
+            container.innerHTML = '';
+            
+            // Calculer les positions pour un arbre hiérarchique
+            const positions = calculateTreePositions(familyData);
+            
+            // Créer les cartes
+            createTreeCards(positions, container);
+            
+            // Créer les branches
+            createTreeBranches(positions, container);
+            
+            // Animer l'apparition
+            animateTreeAppearance();
+        }
+
+        // Calculer les positions de l'arbre
+        function calculateTreePositions(familyData) {
+            const positions = {};
+            const containerWidth = 1200;
+            const containerHeight = 600;
+            const cardWidth = 180;
+            const cardHeight = 120;
+            const levelHeight = 150;
+            const levelSpacing = 200;
+
+            // Position centrale (personne principale)
+            positions.main = {
+                x: (containerWidth - cardWidth) / 2,
+                y: containerHeight - levelHeight,
+                person: familyData.person,
+                type: 'main'
+            };
+
+            // Positions des parents (niveau 1)
+            if (familyData.parents && familyData.parents.length > 0) {
+                const parentCount = familyData.parents.length;
+                const startX = positions.main.x - (parentCount - 1) * levelSpacing / 2;
+                
+                familyData.parents.forEach((parent, index) => {
+                    positions[`parent_${index}`] = {
+                        x: startX + index * levelSpacing,
+                        y: positions.main.y - levelHeight,
+                        person: parent,
+                        type: 'parent'
+                    };
+                });
+            }
+
+            // Positions des enfants (niveau -1)
+            if (familyData.children && familyData.children.length > 0) {
+                const childCount = familyData.children.length;
+                const startX = positions.main.x - (childCount - 1) * levelSpacing / 2;
+                
+                familyData.children.forEach((child, index) => {
+                    positions[`child_${index}`] = {
+                        x: startX + index * levelSpacing,
+                        y: positions.main.y + levelHeight,
+                        person: child,
+                        type: 'child'
+                    };
+                });
+            }
+
+            return positions;
+        }
+
+        // Créer les cartes de l'arbre
+        function createTreeCards(positions, container) {
+            treeCards = [];
+            
+            Object.keys(positions).forEach(key => {
+                const pos = positions[key];
+                const card = createTreeCard(pos.person, pos.x, pos.y, pos.type);
+                container.appendChild(card);
+                treeCards.push(card);
+            });
+        }
+
+        // Créer une carte d'arbre
+        function createTreeCard(person, x, y, type) {
+            const card = document.createElement('div');
+            card.className = 'tree-card';
+            card.style.left = x + 'px';
+            card.style.top = y + 'px';
+            
+            // ID de la carte (simulé)
+            const cardId = Math.floor(Math.random() * 200) + 1;
+            
+            // Informations de la personne
+            const birthYear = person.birthDate ? new Date(person.birthDate).getFullYear() : 'N/A';
+            const deathYear = person.deathDate ? new Date(person.deathDate).getFullYear() : 'N/A';
+            const status = person.isAlive ? 'Vivant(e)' : 'Décédé(e)';
+            const profession = 'Personne'; // À récupérer depuis l'API si disponible
+            
+            card.innerHTML = `
+                <div class="card-id">${cardId}</div>
+                <div class="card-name">${person.firstName} ${person.lastName}</div>
+                <div class="card-details">
+                    <div>Né(e): ${birthYear}</div>
+                    <div>Décédé(e): ${deathYear}</div>
+                    <div>Lieu: ${person.birthPlace || 'N/A'}</div>
+                    <div>Statut: ${status}</div>
+                    <div>Profession: ${profession}</div>
+                </div>
+            `;
+            
+            // Stocker les données de la personne
+            card.person = person;
+            card.type = type;
+            
+            return card;
+        }
+
+        // Créer les branches de l'arbre
+        function createTreeBranches(positions, container) {
+            treeBranches = [];
+            
+            // Branches vers les parents
+            if (positions.main && Object.keys(positions).some(key => key.startsWith('parent_'))) {
+                const parentPositions = Object.keys(positions).filter(key => key.startsWith('parent_'));
+                
+                parentPositions.forEach(key => {
+                    const parentPos = positions[key];
+                    const branch = createBranch(
+                        positions.main.x + 90, positions.main.y,
+                        parentPos.x + 90, parentPos.y + 120,
+                        container
+                    );
+                    treeBranches.push(branch);
+                });
+            }
+            
+            // Branches vers les enfants
+            if (positions.main && Object.keys(positions).some(key => key.startsWith('child_'))) {
+                const childPositions = Object.keys(positions).filter(key => key.startsWith('child_'));
+                
+                childPositions.forEach(key => {
+                    const childPos = positions[key];
+                    const branch = createBranch(
+                        positions.main.x + 90, positions.main.y + 120,
+                        childPos.x + 90, childPos.y,
+                        container
+                    );
+                    treeBranches.push(branch);
+                });
+            }
+        }
+
+        // Créer une branche
+        function createBranch(x1, y1, x2, y2, container) {
+            const branch = document.createElement('div');
+            branch.className = 'tree-branch';
+            
+            // Calculer la longueur et l'angle
+            const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            
+            branch.style.width = length + 'px';
+            branch.style.height = '3px';
+            branch.style.left = x1 + 'px';
+            branch.style.top = y1 + 'px';
+            branch.style.transformOrigin = '0 50%';
+            branch.style.transform = `rotate(${angle}deg)`;
+            
+            container.appendChild(branch);
+            return branch;
+        }
+
+        // Animer l'apparition de l'arbre
+        function animateTreeAppearance() {
+            // Animer les cartes
+            treeCards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.add('visible');
+                }, index * 200);
+            });
+            
+            // Animer les branches
+            treeBranches.forEach((branch, index) => {
+                setTimeout(() => {
+                    branch.style.opacity = '1';
+                }, (treeCards.length * 200) + (index * 100));
+            });
+        }
+
+        // Effacer l'arbre
+        function clearTree() {
+            const container = document.getElementById('treeContainer');
+            container.innerHTML = '<div class="status-message">Sélectionnez une personne pour commencer</div>';
+            treeCards = [];
+            treeBranches = [];
+            currentFamilyData = null;
+        }
+
+        // Mettre à jour le message de statut
+        function updateStatus(message, type = '') {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = `status-message ${type}`;
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+

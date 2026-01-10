@@ -10,6 +10,10 @@ public class PersonDto
     public DateTime? DeathDate { get; set; }
     public string? BirthPlace { get; set; }
     public string? DeathPlace { get; set; }
+    public string? Profession { get; set; }
+    public DateTime? MarriageDate { get; set; }
+    public string? MarriagePlace { get; set; }
+    public string? DeathStatus { get; set; }
     public string? PhotoUrl { get; set; }
     public string? Biography { get; set; }
     public string Gender { get; set; } = "M";
@@ -29,6 +33,10 @@ public class CreatePersonDto
     public DateTime? DeathDate { get; set; }
     public string? BirthPlace { get; set; }
     public string? DeathPlace { get; set; }
+    public string? Profession { get; set; }
+    public DateTime? MarriageDate { get; set; }
+    public string? MarriagePlace { get; set; }
+    public string? DeathStatus { get; set; }
     public string? PhotoUrl { get; set; }
     public string? Biography { get; set; }
     public string Gender { get; set; } = "M";
@@ -44,6 +52,10 @@ public class UpdatePersonDto
     public DateTime? DeathDate { get; set; }
     public string? BirthPlace { get; set; }
     public string? DeathPlace { get; set; }
+    public string? Profession { get; set; }
+    public DateTime? MarriageDate { get; set; }
+    public string? MarriagePlace { get; set; }
+    public string? DeathStatus { get; set; }
     public string? PhotoUrl { get; set; }
     public string? Biography { get; set; }
     public string Gender { get; set; } = "M";

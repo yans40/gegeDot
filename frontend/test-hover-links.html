@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Hover Links</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        svg { border: 1px solid #ccc; }
+        .node { cursor: pointer; }
+        .link { stroke: #4A90E2; stroke-width: 2px; fill: none; }
+        .tooltip { position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 5px; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <h1>Test Hover Links - Comportement Attendu</h1>
+    <svg width="800" height="600" id="testSvg"></svg>
+    <div id="tooltip" class="tooltip" style="display: none;"></div>
+
+    <script>
+        // Données de test simples
+        const testData = {
+            nodes: [
+                { id: 1, name: 'Charles', x: 400, y: 300, type: 'main' },
+                { id: 2, name: 'Elizabeth', x: 300, y: 200, type: 'parent' },
+                { id: 3, name: 'Philip', x: 500, y: 200, type: 'parent' },
+                { id: 4, name: 'Anne', x: 200, y: 300, type: 'sibling' },
+                { id: 5, name: 'Andrew', x: 600, y: 300, type: 'sibling' }
+            ],
+            links: [
+                { source: 2, target: 1, type: 'parent-child' },
+                { source: 3, target: 1, type: 'parent-child' },
+                { source: 1, target: 4, type: 'sibling' },
+                { source: 1, target: 5, type: 'sibling' }
+            ]
+        };
+
+        function renderTest() {
+            const svg = d3.select('#testSvg');
+            svg.selectAll('*').remove();
+
+            // Créer les liens (invisibles par défaut)
+            const link = svg.selectAll('.link')
+                .data(testData.links)
+                .enter().append('line')
+                .attr('class', 'link')
+                .attr('x1', d => {
+                    const sourceNode = testData.nodes.find(n => n.id === d.source);
+                    return sourceNode ? sourceNode.x : 0;
+                })
+                .attr('y1', d => {
+                    const sourceNode = testData.nodes.find(n => n.id === d.source);
+                    return sourceNode ? sourceNode.y : 0;
+                })
+                .attr('x2', d => {
+                    const targetNode = testData.nodes.find(n => n.id === d.target);
+                    return targetNode ? targetNode.x : 0;
+                })
+                .attr('y2', d => {
+                    const targetNode = testData.nodes.find(n => n.id === d.target);
+                    return targetNode ? targetNode.y : 0;
+                })
+                .style('opacity', 0); // Invisible par défaut
+
+            // Créer les nœuds
+            const node = svg.selectAll('.node')
+                .data(testData.nodes)
+                .enter().append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+
+            node.append('circle')
+                .attr('r', d => d.type === 'main' ? 20 : 15)
+                .attr('fill', d => d.type === 'main' ? '#F39C12' : '#4A90E2');
+
+            node.append('text')
+                .attr('dy', 25)
+                .attr('text-anchor', 'middle')
+                .text(d => d.name);
+
+            // Gestion du survol
+            node.on('mouseover', function(event, d) {
+                console.log('Survol de:', d.name, 'ID:', d.id);
+                
+                // Afficher les liens connectés
+                link.style('opacity', l => {
+                    const isConnected = (l.source === d.id || l.target === d.id);
+                    console.log(`Lien ${l.source} -> ${l.target}: ${isConnected ? 'visible' : 'invisible'}`);
+                    return isConnected ? 1 : 0;
+                });
+
+                // Highlight des nœuds connectés
+                node.transition()
+                    .duration(200)
+                    .style('opacity', n => {
+                        const isConnected = (n.id === d.id || 
+                            testData.links.some(l => 
+                                (l.source === d.id && l.target === n.id) ||
+                                (l.target === d.id && l.source === n.id)
+                            ));
+                        return isConnected ? 1 : 0.3;
+                    });
+
+                // Tooltip
+                const connectedPersons = testData.links
+                    .filter(l => l.source === d.id || l.target === d.id)
+                    .map(l => {
+                        const connectedId = l.source === d.id ? l.target : l.source;
+                        const connectedNode = testData.nodes.find(n => n.id === connectedId);
+                        return connectedNode ? connectedNode.name : connectedId;
+                    });
+
+                d3.select('#tooltip')
+                    .style('display', 'block')
+                    .html(`
+                        <h3>${d.name}</h3>
+                        <p>Liens: ${connectedPersons.join(', ')}</p>
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+            })
+            .on('mouseout', function() {
+                console.log('Fin du survol');
+                
+                // Cacher tous les liens
+                link.transition()
+                    .duration(200)
+                    .style('opacity', 0);
+
+                // Reset des nœuds
+                node.transition()
+                    .duration(200)
+                    .style('opacity', 1);
+
+                d3.select('#tooltip').style('display', 'none');
+            });
+        }
+
+        // Lancer le test
+        window.addEventListener('load', renderTest);
+    </script>
+</body>
+</html>
+
+
+
+
+
+
