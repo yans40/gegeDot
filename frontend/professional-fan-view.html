@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GegeDot - Vue Éventail Professionnelle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .person-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .person-selector label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .person-selector select {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 250px;
+            background: white;
+        }
+
+        .controls button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .controls button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 20px;
+        }
+
+        .zoom-controls button {
+            padding: 8px 16px;
+            font-size: 14px;
+            min-width: 45px;
+        }
+
+        .zoom-controls span {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .visualization-container {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 250px);
+            min-height: 600px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .fan-viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            cursor: grab;
+        }
+
+        .fan-viewport:active {
+            cursor: grabbing;
+        }
+
+        .fan-content {
+            position: relative;
+            min-width: 3000px;
+            min-height: 1500px;
+            transform-origin: 0 0;
+            transition: transform 0.3s ease;
+        }
+
+        /* Styles pour les cartes généalogiques professionnelles */
+        .genealogy-card {
+            position: absolute;
+            width: 200px;
+            min-height: 180px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: scale(0.8);
+            z-index: 5; /* Au-dessus des connexions */
+        }
+
+        .genealogy-card.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .genealogy-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            z-index: 10;
+        }
+
+        .genealogy-card.male {
+            border-color: #4A90E2;
+        }
+
+        .genealogy-card.female {
+            border-color: #E24A90;
+        }
+
+        .genealogy-card.central {
+            border-color: #F39C12;
+            border-width: 3px;
+        }
+
+        .card-id {
+            font-size: 11px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .card-name {
+            font-size: 15px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            text-align: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .card-profession {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .card-details {
+            font-size: 11px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .card-detail-line {
+            margin-bottom: 4px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .card-detail-icon {
+            margin-right: 6px;
+            font-weight: bold;
+            min-width: 12px;
+        }
+
+        .card-detail-text {
+            flex: 1;
+        }
+
+        /* Connexions familiales */
+        .family-connection {
+            position: absolute;
+            background: #333;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .connection-parent-child {
+            width: 2px;
+            background: #4A90E2;
+        }
+
+        .connection-marriage {
+            height: 2px;
+            background: #E24A90;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status.loading {
+            display: block;
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status.success {
+            display: block;
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status.error {
+            display: block;
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        /* Légende */
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            max-width: 250px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .legend h4 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #333;
+            margin-right: 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌳 GegeDot - Vue Éventail Professionnelle</h1>
+        <p>Visualisation hiérarchique par générations avec informations complètes</p>
+    </div>
+
+    <div class="controls">
+        <div class="person-selector">
+            <label for="personSelect">👤 Personne :</label>
+            <select id="personSelect">
+                <option value="">-- Sélectionnez une personne --</option>
+            </select>
+        </div>
+        <button id="loadTreeBtn" onclick="loadFanView()">🌳 Charger la Vue Éventail</button>
+        <div class="zoom-controls">
+            <button onclick="zoomOut()">🔍-</button>
+            <button onclick="resetZoom()">🎯</button>
+            <button onclick="zoomIn()">🔍+</button>
+            <span id="zoomLevel">100%</span>
+        </div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <div class="visualization-container">
+        <div class="fan-viewport" id="fanViewport">
+            <div class="fan-content" id="fanContent"></div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <h4>📋 Légende</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background: white; border-color: #F39C12;"></div>
+            <span>Personne centrale</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: white; border-color: #4A90E2;"></div>
+            <span>Homme</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: white; border-color: #E24A90;"></div>
+            <span>Femme</span>
+        </div>
+        <div class="legend-item">
+            <div style="width: 20px; height: 2px; background: #4A90E2; margin-right: 8px;"></div>
+            <span>Lien parent-enfant</span>
+        </div>
+        <div class="legend-item">
+            <div style="width: 20px; height: 2px; background: #E24A90; margin-right: 8px;"></div>
+            <span>Lien mariage</span>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        let currentZoom = 1;
+        let currentPanX = 0;
+        let currentPanY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let allCards = [];
+        let allConnections = [];
+        let familyTreeData = null;
+
+        // Charger la liste des personnes
+        async function loadPersons() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                if (!response.ok) throw new Error('Erreur lors du chargement des personnes');
+                
+                const persons = await response.json();
+                const select = document.getElementById('personSelect');
+                select.innerHTML = '<option value="">-- Sélectionnez une personne --</option>';
+                
+                persons.forEach(person => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.fullName} (ID: ${person.id})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erreur:', error);
+                updateStatus('Erreur lors du chargement des personnes', 'error');
+            }
+        }
+
+        // Charger la vue éventail
+        async function loadFanView() {
+            const personId = document.getElementById('personSelect').value;
+            if (!personId) {
+                updateStatus('Veuillez sélectionner une personne', 'error');
+                return;
+            }
+
+            updateStatus('Chargement...', 'loading');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons/${personId}/family`);
+                if (!response.ok) throw new Error('Erreur lors du chargement des données familiales');
+                
+                const familyData = await response.json();
+                familyTreeData = familyData;
+                
+                renderFanView(familyData);
+                updateStatus('Vue éventail chargée avec succès', 'success');
+                setTimeout(() => {
+                    document.getElementById('status').style.display = 'none';
+                }, 2000);
+            } catch (error) {
+                console.error('Erreur:', error);
+                updateStatus('Erreur lors du chargement', 'error');
+            }
+        }
+
+        // Rendre la vue éventail avec structure hiérarchique
+        async function renderFanView(familyData) {
+            const content = document.getElementById('fanContent');
+            content.innerHTML = '';
+            allCards = [];
+            allConnections = [];
+
+            updateStatus('Construction de l\'arbre généalogique...', 'loading');
+
+            // Construire l'arbre complet par générations (récursif)
+            const { generations, familyDataCache } = await buildGenerations(familyData, 4);
+            
+            if (generations.length === 0) {
+                updateStatus('Aucune donnée à afficher', 'error');
+                return;
+            }
+
+            // Configuration de positionnement adaptatif
+            const levelHeight = 220; // Espacement vertical entre générations
+            const baseCardSpacing = 250; // Espacement horizontal de base
+            const startY = 50; // Position Y de départ
+            const cardWidth = 200; // Largeur d'une carte
+            const minSpacing = cardWidth + 30; // Espacement minimum entre cartes (largeur + marge)
+
+            // Stocker les positions calculées et les relations parent-enfant
+            const cardPositions = new Map();
+            const parentChildMap = new Map(); // Map: childId -> [parentIds]
+            const personLevelMap = new Map(); // Map: personId -> level
+
+            // Créer une map des niveaux pour chaque personne
+            for (let level = 0; level < generations.length; level++) {
+                const generation = generations[level];
+                for (const personData of generation) {
+                    personLevelMap.set(personData.person.id, level);
+                }
+            }
+
+            // Construire la map des relations parent-enfant en utilisant le cache des données familiales
+            for (let level = 0; level < generations.length; level++) {
+                const generation = generations[level];
+                for (const personData of generation) {
+                    const personId = personData.person.id;
+                    const personFamilyData = familyDataCache.get(personId);
+                    
+                    if (personFamilyData && personFamilyData.parents && personFamilyData.parents.length > 0) {
+                        // Filtrer pour ne garder que les parents qui sont dans une génération supérieure
+                        const parentsInView = personFamilyData.parents
+                            .filter(parent => {
+                                const parentLevel = personLevelMap.get(parent.id);
+                                return parentLevel !== undefined && parentLevel > level;
+                            })
+                            .map(p => p.id);
+                        
+                        if (parentsInView.length > 0) {
+                            parentChildMap.set(personId, parentsInView);
+                            console.log(`📋 ${personData.person.fullName} (niveau ${level}) a ${parentsInView.length} parent(s) dans la vue:`, parentsInView);
+                        }
+                    }
+                }
+            }
+
+            // Debug: Afficher la structure des générations
+            console.log('📊 Structure des générations:');
+            generations.forEach((gen, idx) => {
+                console.log(`  Niveau ${idx}: ${gen.length} personne(s) - ${gen.map(p => p.person.fullName).join(', ')}`);
+            });
+            console.log('📋 Map parent-enfant:', Array.from(parentChildMap.entries()));
+
+            // Calculer les positions en partant de la génération la plus haute
+            // et en descendant niveau par niveau, en centrant chaque personne par rapport à ses parents
+            for (let level = generations.length - 1; level >= 0; level--) {
+                const generation = generations[level];
+                
+                if (level === generations.length - 1) {
+                    // Dernière génération (la plus haute) : positionner séquentiellement
+                    const cardSpacing = Math.max(baseCardSpacing, minSpacing);
+                    const totalWidth = (generation.length - 1) * cardSpacing;
+                    const startX = 1500 - (totalWidth / 2);
+                    
+                    generation.forEach((personData, index) => {
+                        const x = startX + (index * cardSpacing);
+                        cardPositions.set(personData.person.id, x);
+                    });
+                } else {
+                    // Pour les autres générations, centrer chaque personne par rapport à ses parents
+                    // Les parents sont déjà positionnés (niveau supérieur)
+                    for (const personData of generation) {
+                        const personId = personData.person.id;
+                        const parentIds = parentChildMap.get(personId) || [];
+                        
+                        if (parentIds.length > 0) {
+                            // Récupérer les positions des parents (qui sont déjà calculées car on va de haut en bas)
+                            const parentPositions = parentIds
+                                .map(pid => {
+                                    const pos = cardPositions.get(pid);
+                                    if (pos === undefined) {
+                                        console.warn(`Position non trouvée pour le parent ${pid} de ${personId}`);
+                                    }
+                                    return pos;
+                                })
+                                .filter(pos => pos !== undefined);
+                            
+                            if (parentPositions.length > 0) {
+                                // Centrer par rapport aux parents
+                                const centerX = parentPositions.reduce((sum, pos) => sum + pos, 0) / parentPositions.length;
+                                cardPositions.set(personId, centerX);
+                                console.log(`✅ ${personData.person.fullName} (niveau ${level}) centré à ${centerX} par rapport à ${parentIds.length} parent(s)`);
+                            } else {
+                                // Si les parents ne sont pas trouvés, positionner séquentiellement
+                                console.warn(`⚠️ Parents non positionnés pour ${personData.person.fullName}, positionnement séquentiel`);
+                                const index = generation.findIndex(p => p.person.id === personId);
+                                const cardSpacing = Math.max(baseCardSpacing, minSpacing);
+                                const totalWidth = (generation.length - 1) * cardSpacing;
+                                const startX = 1500 - (totalWidth / 2);
+                                cardPositions.set(personId, startX + (index * cardSpacing));
+                            }
+                        } else {
+                            // Pas de parents dans la vue, positionner séquentiellement
+                            const index = generation.findIndex(p => p.person.id === personId);
+                            const cardSpacing = Math.max(baseCardSpacing, minSpacing);
+                            const totalWidth = (generation.length - 1) * cardSpacing;
+                            const startX = 1500 - (totalWidth / 2);
+                            cardPositions.set(personId, startX + (index * cardSpacing));
+                        }
+                    }
+                }
+            }
+
+            // Vérifier et corriger les chevauchements pour chaque génération
+            // (en préservant autant que possible le centrage)
+            for (let level = 0; level < generations.length; level++) {
+                const generation = generations[level];
+                if (!generation || generation.length <= 1) continue;
+
+                // Trier les cartes par position X
+                const sortedCards = generation
+                    .map(p => ({
+                        id: p.person.id,
+                        x: cardPositions.get(p.person.id) || 1500,
+                        hasParents: parentChildMap.has(p.person.id)
+                    }))
+                    .sort((a, b) => a.x - b.x);
+
+                // Corriger les chevauchements en préservant le centrage quand possible
+                for (let i = 1; i < sortedCards.length; i++) {
+                    const prevX = sortedCards[i - 1].x;
+                    const currentX = sortedCards[i].x;
+                    
+                    if (currentX - prevX < minSpacing) {
+                        // Décaler la carte actuelle
+                        const newX = prevX + minSpacing;
+                        cardPositions.set(sortedCards[i].id, newX);
+                        sortedCards[i].x = newX;
+                        
+                        // Si la carte précédente avait des parents, essayer de réajuster
+                        // (optionnel, pour maintenir le centrage)
+                    }
+                }
+            }
+
+            // Rendre chaque génération avec les positions calculées
+            generations.forEach((generation, level) => {
+                const y = startY + (level * levelHeight);
+
+                generation.forEach((personData) => {
+                    const x = cardPositions.get(personData.person.id) || 1500;
+                    const card = createGenealogyCard(personData.person, personData.generation, x, y, personData.isCentral);
+                    content.appendChild(card);
+                    allCards.push({ 
+                        card, 
+                        person: personData.person, 
+                        generation: personData.generation,
+                        x: x,
+                        y: y
+                    });
+                });
+            });
+
+            // Dessiner les connexions
+            await drawConnections(generations, parentChildMap);
+
+            // Animer l'apparition des cartes
+            animateCards();
+        }
+
+        // Construire les générations à partir des données familiales (récursif)
+        async function buildGenerations(familyData, maxDepth = 4) {
+            const generations = [];
+            const processed = new Map(); // Map pour stocker les personnes avec leur génération
+            const familyDataCache = new Map(); // Cache pour les données familiales
+
+            // Fonction récursive pour charger les parents
+            async function loadParentsRecursive(person, generation, maxDepth) {
+                if (generation >= maxDepth || processed.has(person.id)) {
+                    return;
+                }
+
+                processed.set(person.id, generation);
+
+                // S'assurer que la génération existe
+                if (!generations[generation]) {
+                    generations[generation] = [];
+                }
+
+                // Ajouter la personne à sa génération
+                generations[generation].push({
+                    person: person,
+                    generation: generation,
+                    isCentral: generation === 0
+                });
+
+                // Charger les parents si on n'a pas atteint la profondeur max
+                if (generation < maxDepth - 1) {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/persons/${person.id}/family`);
+                        if (response.ok) {
+                            const parentFamilyData = await response.json();
+                            // Stocker les données familiales dans le cache
+                            familyDataCache.set(person.id, parentFamilyData);
+                            
+                            if (parentFamilyData.parents && parentFamilyData.parents.length > 0) {
+                                for (const parent of parentFamilyData.parents) {
+                                    await loadParentsRecursive(parent, generation + 1, maxDepth);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(`Impossible de charger les parents de ${person.id}:`, error);
+                    }
+                }
+            }
+
+            // Commencer avec la personne centrale
+            familyDataCache.set(familyData.person.id, familyData);
+            await loadParentsRecursive(familyData.person, 0, maxDepth);
+            
+            // Retourner les générations et le cache des données familiales
+            return { generations, familyDataCache };
+
+            // Trier les générations et les personnes dans chaque génération
+            const sortedGenerations = [];
+            for (let i = 0; i < generations.length; i++) {
+                if (generations[i] && generations[i].length > 0) {
+                    // Trier par nom pour un affichage cohérent
+                    generations[i].sort((a, b) => {
+                        const nameA = (a.person.lastName + ' ' + a.person.firstName).toLowerCase();
+                        const nameB = (b.person.lastName + ' ' + b.person.firstName).toLowerCase();
+                        return nameA.localeCompare(nameB);
+                    });
+                    sortedGenerations.push(generations[i]);
+                }
+            }
+
+            return sortedGenerations;
+        }
+
+        // Créer une carte généalogique professionnelle
+        function createGenealogyCard(person, generation, x, y, isCentral) {
+            const card = document.createElement('div');
+            card.className = 'genealogy-card';
+            card.style.left = x + 'px';
+            card.style.top = y + 'px';
+            card.dataset.personId = person.id;
+            card.dataset.generation = generation;
+
+            if (isCentral) {
+                card.classList.add('central');
+            }
+            if (person.gender === 'Male' || person.gender === 'M') {
+                card.classList.add('male');
+            } else {
+                card.classList.add('female');
+            }
+
+            // Formatage des dates
+            const formatDate = (dateStr) => {
+                if (!dateStr) return '';
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+            };
+
+            // Formatage du lieu avec code département si disponible
+            const formatPlace = (place) => {
+                if (!place) return '';
+                // Si le lieu contient déjà un code entre parenthèses, on le garde
+                return place;
+            };
+
+            card.innerHTML = `
+                <div class="card-id">ID: ${person.id}</div>
+                <div class="card-name">${person.fullName}</div>
+                ${person.profession ? `<div class="card-profession">${person.profession}</div>` : ''}
+                <div class="card-details">
+                    ${person.birthDate ? `
+                        <div class="card-detail-line">
+                            <span class="card-detail-icon">°</span>
+                            <span class="card-detail-text">${formatDate(person.birthDate)} ${person.birthPlace ? formatPlace(person.birthPlace) : ''}</span>
+                        </div>
+                    ` : ''}
+                    ${person.marriageDate ? `
+                        <div class="card-detail-line">
+                            <span class="card-detail-icon">×</span>
+                            <span class="card-detail-text">${formatDate(person.marriageDate)} ${person.marriagePlace ? formatPlace(person.marriagePlace) : ''}</span>
+                        </div>
+                    ` : ''}
+                    ${person.deathDate || person.deathStatus ? `
+                        <div class="card-detail-line">
+                            <span class="card-detail-icon">+</span>
+                            <span class="card-detail-text">
+                                ${person.deathDate ? formatDate(person.deathDate) : ''} 
+                                ${person.deathPlace ? formatPlace(person.deathPlace) : ''}
+                                ${person.deathStatus ? ` (${person.deathStatus})` : ''}
+                            </span>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            return card;
+        }
+
+        // Dessiner les connexions familiales (utilise les positions déjà calculées et centrées)
+        async function drawConnections(generations, parentChildMap) {
+            const content = document.getElementById('fanContent');
+
+            // Utiliser la map parent-enfant déjà construite
+            for (let level = 0; level < generations.length - 1; level++) {
+                const currentGeneration = generations[level];
+
+                for (const personData of currentGeneration) {
+                    const personId = personData.person.id;
+                    const card = document.querySelector(`[data-person-id="${personId}"]`);
+                    
+                    if (!card) continue;
+
+                    const parentIds = parentChildMap ? parentChildMap.get(personId) || [] : [];
+                    
+                    if (parentIds.length > 0) {
+                        const childX = parseInt(card.style.left) + 100; // Centre de la carte enfant
+                        const childY = parseInt(card.style.top) + 180; // Bas de la carte enfant
+
+                        // Récupérer les cartes des parents
+                        const parentCards = parentIds
+                            .map(pid => document.querySelector(`[data-person-id="${pid}"]`))
+                            .filter(c => c !== null);
+
+                        if (parentCards.length > 0) {
+                            // Calculer le centre entre tous les parents (déjà centrés)
+                            const parentXs = parentCards.map(c => parseInt(c.style.left) + 100);
+                            const parentYs = parentCards.map(c => parseInt(c.style.top) + 180);
+                            const minParentX = Math.min(...parentXs);
+                            const maxParentX = Math.max(...parentXs);
+                            const midX = (minParentX + maxParentX) / 2;
+                            const minParentY = Math.min(...parentYs);
+                            
+                            // Point de connexion vertical (au-dessus des cartes parents)
+                            const connectionY = minParentY - 20; // 20px au-dessus des cartes parents
+
+                            // Ligne verticale depuis l'enfant jusqu'au point de connexion
+                            const verticalFromChild = document.createElement('div');
+                            verticalFromChild.className = 'family-connection connection-parent-child';
+                            verticalFromChild.style.left = (childX - 1) + 'px';
+                            verticalFromChild.style.top = childY + 'px';
+                            verticalFromChild.style.height = (connectionY - childY) + 'px';
+                            verticalFromChild.style.width = '2px';
+                            content.appendChild(verticalFromChild);
+                            allConnections.push(verticalFromChild);
+
+                            // Ligne horizontale de l'enfant vers le centre (si nécessaire)
+                            if (Math.abs(childX - midX) > 5) {
+                                const horizontalFromChild = document.createElement('div');
+                                horizontalFromChild.className = 'family-connection connection-parent-child';
+                                horizontalFromChild.style.left = Math.min(childX, midX) + 'px';
+                                horizontalFromChild.style.top = connectionY + 'px';
+                                horizontalFromChild.style.width = Math.abs(childX - midX) + 'px';
+                                horizontalFromChild.style.height = '2px';
+                                content.appendChild(horizontalFromChild);
+                                allConnections.push(horizontalFromChild);
+                            }
+
+                            // Ligne horizontale au-dessus des parents
+                            const horizontalTop = document.createElement('div');
+                            horizontalTop.className = 'family-connection connection-parent-child';
+                            horizontalTop.style.left = minParentX + 'px';
+                            horizontalTop.style.top = connectionY + 'px';
+                            horizontalTop.style.width = (maxParentX - minParentX) + 'px';
+                            horizontalTop.style.height = '2px';
+                            content.appendChild(horizontalTop);
+                            allConnections.push(horizontalTop);
+
+                            // Lignes verticales depuis le point de connexion vers chaque parent
+                            parentCards.forEach((parentCard) => {
+                                const parentX = parseInt(parentCard.style.left) + 100;
+                                const parentY = parseInt(parentCard.style.top) + 180;
+                                
+                                // Ligne verticale vers le parent
+                                const verticalToParent = document.createElement('div');
+                                verticalToParent.className = 'family-connection connection-parent-child';
+                                verticalToParent.style.left = (parentX - 1) + 'px';
+                                verticalToParent.style.top = connectionY + 'px';
+                                verticalToParent.style.height = (parentY - connectionY) + 'px';
+                                verticalToParent.style.width = '2px';
+                                content.appendChild(verticalToParent);
+                                allConnections.push(verticalToParent);
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Animer l'apparition des cartes
+        function animateCards() {
+            const cards = document.querySelectorAll('.genealogy-card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.add('visible');
+                }, index * 100);
+            });
+        }
+
+        // Zoom et pan
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom * 1.2, 3);
+            updateViewport();
+        }
+
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom / 1.2, 0.3);
+            updateViewport();
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            currentPanX = 0;
+            currentPanY = 0;
+            updateViewport();
+        }
+
+        function updateViewport() {
+            const content = document.getElementById('fanContent');
+            content.style.transform = `translate(${currentPanX}px, ${currentPanY}px) scale(${currentZoom})`;
+            document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+        }
+
+        // Gestion du drag pour pan
+        const viewport = document.getElementById('fanViewport');
+        viewport.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX - currentPanX;
+            dragStartY = e.clientY - currentPanY;
+            viewport.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                currentPanX = e.clientX - dragStartX;
+                currentPanY = e.clientY - dragStartY;
+                updateViewport();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            viewport.style.cursor = 'grab';
+        });
+
+        // Zoom avec molette
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            currentZoom = Math.max(0.3, Math.min(3, currentZoom * delta));
+            updateViewport();
+        });
+
+        // Mise à jour du statut
+        function updateStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPersons();
+            
+            // Vérifier si un personId est passé en paramètre URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const personId = urlParams.get('personId');
+            if (personId) {
+                document.getElementById('personSelect').value = personId;
+                setTimeout(() => {
+                    loadFanView();
+                }, 500);
+            }
+        });
+    </script>
+</body>
+</html>

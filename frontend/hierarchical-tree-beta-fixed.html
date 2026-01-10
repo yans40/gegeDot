@@ -591,6 +591,7 @@
         </div>
         <button id="loadTree" onclick="loadFamilyTree()" disabled>🌳 Charger l'Arbre Familial</button>
         <button id="loadCard" onclick="loadCardView()" disabled>🎴 Vue Carte Éventail</button>
+        <button id="loadProfessionalFan" onclick="loadProfessionalFanView()" disabled style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);">🌟 Vue Éventail Professionnelle</button>
         <button onclick="loadPersons()">🔄 Actualiser la liste</button>
         <button onclick="openAddPersonForm()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">➕ Ajouter une personne</button>
         <div class="zoom-controls">
@@ -1109,16 +1110,31 @@
             const select = document.getElementById('personSelect');
             const loadTreeButton = document.getElementById('loadTree');
             const loadCardButton = document.getElementById('loadCard');
+            const loadProfessionalFanButton = document.getElementById('loadProfessionalFan');
             
             if (select.value && select.value !== '') {
                 loadTreeButton.disabled = false;
                 loadCardButton.disabled = false;
+                if (loadProfessionalFanButton) loadProfessionalFanButton.disabled = false;
                 console.log('✅ Boutons activés pour la personne ID:', select.value);
             } else {
                 loadTreeButton.disabled = true;
                 loadCardButton.disabled = true;
+                if (loadProfessionalFanButton) loadProfessionalFanButton.disabled = true;
                 console.log('❌ Boutons désactivés - aucune personne sélectionnée');
             }
+        }
+
+        // Fonction pour charger la vue éventail professionnelle
+        function loadProfessionalFanView() {
+            const selectedPersonId = document.getElementById('personSelect').value;
+            if (!selectedPersonId) {
+                updateStatus('Veuillez sélectionner une personne', false, true);
+                return;
+            }
+            
+            // Ouvrir la vue professionnelle dans un nouvel onglet
+            window.open(`professional-fan-view.html?personId=${selectedPersonId}`, '_blank');
         }
 
         function updateStatus(message, loading = false, error = false, success = false) {
