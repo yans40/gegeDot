@@ -41,6 +41,8 @@ public class CreatePersonDto
     public string? Biography { get; set; }
     public string Gender { get; set; } = "M";
     public bool IsAlive { get; set; } = true;
+    public int? Parent1Id { get; set; }
+    public int? Parent2Id { get; set; }
 }
 
 public class UpdatePersonDto

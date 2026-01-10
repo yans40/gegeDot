@@ -77,6 +77,67 @@ public class PersonService : IPersonService
         person.UpdatedAt = DateTime.UtcNow;
         
         var createdPerson = await _unitOfWork.Persons.AddAsync(person);
+        
+        // Créer les relations parent-enfant si des parents sont spécifiés
+        if (normalizedDto.Parent1Id.HasValue || normalizedDto.Parent2Id.HasValue)
+        {
+            // Créer la relation avec le premier parent (Parent1Id = parent, Person2Id = enfant)
+            if (normalizedDto.Parent1Id.HasValue)
+            {
+                // Vérifier que le parent existe
+                var parent1Exists = await _unitOfWork.Persons.ExistsAsync(normalizedDto.Parent1Id.Value);
+                if (!parent1Exists)
+                    throw new ArgumentException($"Parent avec l'ID {normalizedDto.Parent1Id.Value} n'existe pas");
+                
+                // Vérifier que la relation n'existe pas déjà
+                var relationshipExists = await _unitOfWork.Relationships.RelationshipExistsAsync(
+                    normalizedDto.Parent1Id.Value, 
+                    createdPerson.Id, 
+                    RelationshipType.Parent);
+                
+                if (!relationshipExists)
+                {
+                    var relationship1 = new Relationship
+                    {
+                        Person1Id = normalizedDto.Parent1Id.Value,
+                        Person2Id = createdPerson.Id,
+                        RelationshipType = RelationshipType.Parent,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _unitOfWork.Relationships.AddAsync(relationship1);
+                }
+            }
+            
+            // Créer la relation avec le deuxième parent
+            if (normalizedDto.Parent2Id.HasValue)
+            {
+                // Vérifier que le parent existe
+                var parent2Exists = await _unitOfWork.Persons.ExistsAsync(normalizedDto.Parent2Id.Value);
+                if (!parent2Exists)
+                    throw new ArgumentException($"Parent avec l'ID {normalizedDto.Parent2Id.Value} n'existe pas");
+                
+                // Vérifier que la relation n'existe pas déjà
+                var relationshipExists = await _unitOfWork.Relationships.RelationshipExistsAsync(
+                    normalizedDto.Parent2Id.Value, 
+                    createdPerson.Id, 
+                    RelationshipType.Parent);
+                
+                if (!relationshipExists)
+                {
+                    var relationship2 = new Relationship
+                    {
+                        Person1Id = normalizedDto.Parent2Id.Value,
+                        Person2Id = createdPerson.Id,
+                        RelationshipType = RelationshipType.Parent,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _unitOfWork.Relationships.AddAsync(relationship2);
+                }
+            }
+        }
+        
         return _mapper.Map<PersonDto>(createdPerson);
     }
 
@@ -117,7 +178,9 @@ public class PersonService : IPersonService
             Biography = dto.Biography,
             Gender = dto.Gender,
             IsAlive = dto.IsAlive,
-            DeathStatus = dto.DeathStatus
+            DeathStatus = dto.DeathStatus,
+            Parent1Id = dto.Parent1Id,
+            Parent2Id = dto.Parent2Id
         };
     }
 

@@ -574,6 +574,55 @@
         .required {
             color: #dc3545;
         }
+        
+        /* Styles pour l'autocomplétion des parents */
+        .autocomplete-suggestions {
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 2px;
+            width: calc(100% - 10px);
+            left: 0;
+            top: 100%;
+        }
+        
+        .parent-search-container {
+            position: relative;
+        }
+        
+        .autocomplete-suggestion {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .autocomplete-suggestion:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .autocomplete-suggestion:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-suggestion strong {
+            color: #667eea;
+        }
+        
+        .selected-parent {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .selected-parent span {
+            font-weight: 600;
+            color: #2e7d32;
+        }
     </style>
 </head>
 <body>
@@ -1581,25 +1630,277 @@
             }
         });
         
+        // Variables globales pour l'autocomplétion
+        let allPersonsCache = [];
+        let currentQuickCreateParent = null; // 1 ou 2 pour savoir quel parent on crée
+        
         // Fonctions pour le formulaire d'ajout de personne
-        function openAddPersonForm() {
+        async function openAddPersonForm() {
             document.getElementById('addPersonModal').style.display = 'block';
             // Réinitialiser le formulaire
             document.getElementById('addPersonForm').reset();
             // Masquer la section des doublons
             document.getElementById('duplicatesSection').style.display = 'none';
             document.getElementById('confirmNoDuplicate').checked = false;
+            
+            // Réinitialiser les parents
+            clearParent(1);
+            clearParent(2);
+            
+            // Charger les personnes pour l'autocomplétion
+            await loadPersonsForAutocomplete();
+            
+            // Initialiser les événements de recherche
+            setupParentSearch(1);
+            setupParentSearch(2);
+        }
+        
+        // Charger toutes les personnes pour l'autocomplétion
+        async function loadPersonsForAutocomplete() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/persons`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                allPersonsCache = await response.json();
+                console.log(`✅ ${allPersonsCache.length} personnes chargées pour l'autocomplétion`);
+            } catch (error) {
+                console.error('❌ Erreur lors du chargement des personnes:', error);
+                updateStatus(`Erreur lors du chargement des personnes: ${error.message}`, false, true);
+            }
+        }
+        
+        // Configurer la recherche avec autocomplétion pour un parent
+        function setupParentSearch(parentNumber) {
+            const searchInput = document.getElementById(`parent${parentNumber}Search`);
+            const suggestionsDiv = document.getElementById(`parent${parentNumber}Suggestions`);
+            
+            if (!searchInput) return;
+            
+            // Vider les suggestions quand on clique ailleurs
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                    suggestionsDiv.style.display = 'none';
+                }
+            });
+            
+            // Recherche en temps réel
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim().toLowerCase();
+                
+                if (query.length < 2) {
+                    suggestionsDiv.style.display = 'none';
+                    return;
+                }
+                
+                // Filtrer les personnes
+                const matches = allPersonsCache.filter(person => {
+                    const fullName = person.fullName.toLowerCase();
+                    return fullName.includes(query);
+                }).slice(0, 10); // Limiter à 10 résultats
+                
+                if (matches.length === 0) {
+                    suggestionsDiv.innerHTML = '<div class="autocomplete-suggestion">Aucun résultat</div>';
+                    suggestionsDiv.style.display = 'block';
+                    return;
+                }
+                
+                // Afficher les suggestions
+                suggestionsDiv.innerHTML = '';
+                matches.forEach(person => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-suggestion';
+                    div.innerHTML = `<strong>${person.fullName}</strong> (${person.gender})`;
+                    div.onclick = () => selectParent(parentNumber, person);
+                    suggestionsDiv.appendChild(div);
+                });
+                
+                suggestionsDiv.style.display = 'block';
+            });
+        }
+        
+        // Sélectionner un parent
+        function selectParent(parentNumber, person) {
+            const searchInput = document.getElementById(`parent${parentNumber}Search`);
+            const hiddenInput = document.getElementById(`parent${parentNumber}Id`);
+            const suggestionsDiv = document.getElementById(`parent${parentNumber}Suggestions`);
+            const selectedDiv = document.getElementById(`parent${parentNumber}Selected`);
+            const selectedName = document.getElementById(`parent${parentNumber}SelectedName`);
+            
+            // Mettre à jour les valeurs
+            hiddenInput.value = person.id;
+            searchInput.value = '';
+            suggestionsDiv.style.display = 'none';
+            selectedName.textContent = person.fullName;
+            selectedDiv.style.display = 'flex';
+        }
+        
+        // Effacer un parent sélectionné
+        function clearParent(parentNumber) {
+            const searchInput = document.getElementById(`parent${parentNumber}Search`);
+            const hiddenInput = document.getElementById(`parent${parentNumber}Id`);
+            const suggestionsDiv = document.getElementById(`parent${parentNumber}Suggestions`);
+            const selectedDiv = document.getElementById(`parent${parentNumber}Selected`);
+            
+            searchInput.value = '';
+            hiddenInput.value = '';
+            suggestionsDiv.style.display = 'none';
+            selectedDiv.style.display = 'none';
+        }
+        
+        // Ouvrir le mini-formulaire de création rapide
+        function openQuickCreateParent(parentNumber) {
+            currentQuickCreateParent = parentNumber;
+            const modal = document.getElementById('quickCreateParentModal');
+            const form = document.getElementById('quickCreateParentForm');
+            
+            // Réinitialiser le formulaire
+            form.reset();
+            document.getElementById('quickDuplicatesSection').style.display = 'none';
+            document.getElementById('quickConfirmNoDuplicate').checked = false;
+            
+            // Pré-remplir avec la recherche si disponible
+            const searchInput = document.getElementById(`parent${parentNumber}Search`);
+            if (searchInput && searchInput.value.trim()) {
+                const parts = searchInput.value.trim().split(' ');
+                if (parts.length >= 2) {
+                    document.getElementById('quickFirstName').value = parts[0];
+                    document.getElementById('quickLastName').value = parts.slice(1).join(' ');
+                } else {
+                    document.getElementById('quickFirstName').value = searchInput.value.trim();
+                }
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        // Fermer le mini-formulaire
+        function closeQuickCreateParent() {
+            document.getElementById('quickCreateParentModal').style.display = 'none';
+            currentQuickCreateParent = null;
+        }
+        
+        // Soumettre le formulaire de création rapide
+        async function submitQuickCreateParent(event) {
+            event.preventDefault();
+            
+            const submitButton = event.target.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            
+            try {
+                submitButton.disabled = true;
+                submitButton.textContent = '⏳ Vérification...';
+                
+                // Récupérer les données
+                const formData = {
+                    firstName: document.getElementById('quickFirstName').value.trim(),
+                    lastName: document.getElementById('quickLastName').value.trim(),
+                    gender: document.getElementById('quickGender').value,
+                    birthDate: document.getElementById('quickBirthDate').value || null,
+                    birthPlace: document.getElementById('quickBirthPlace').value.trim() || null,
+                    isAlive: true
+                };
+                
+                // Convertir la date
+                if (formData.birthDate) {
+                    formData.birthDate = new Date(formData.birthDate + 'T00:00:00').toISOString();
+                }
+                
+                // Vérifier les doublons
+                const duplicatesResult = await checkDuplicates(formData);
+                
+                if (duplicatesResult.hasDuplicates && duplicatesResult.duplicates.length > 0) {
+                    displayQuickDuplicates(duplicatesResult.duplicates);
+                    
+                    if (!document.getElementById('quickConfirmNoDuplicate').checked) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalText;
+                        return;
+                    }
+                } else {
+                    document.getElementById('quickDuplicatesSection').style.display = 'none';
+                }
+                
+                submitButton.textContent = '⏳ Création...';
+                
+                // Créer la personne
+                const response = await fetch(`${API_BASE_URL}/persons`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'Erreur inconnue' }));
+                    throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+                }
+                
+                const newPerson = await response.json();
+                
+                // Ajouter à la cache
+                allPersonsCache.push(newPerson);
+                
+                // Sélectionner automatiquement ce parent
+                selectParent(currentQuickCreateParent, newPerson);
+                
+                // Fermer le modal
+                closeQuickCreateParent();
+                
+                updateStatus(`✅ Parent "${newPerson.fullName}" créé et sélectionné !`, false, false, true);
+                
+            } catch (error) {
+                console.error('Erreur lors de la création rapide:', error);
+                updateStatus(`❌ Erreur: ${error.message}`, false, true);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            }
+        }
+        
+        // Afficher les doublons dans le mini-formulaire
+        function displayQuickDuplicates(duplicates) {
+            const section = document.getElementById('quickDuplicatesSection');
+            const list = document.getElementById('quickDuplicatesList');
+            
+            if (!duplicates || duplicates.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            list.innerHTML = '<ul style="margin: 0; padding-left: 20px; font-size: 12px;">';
+            duplicates.forEach(dup => {
+                const birthDateStr = dup.birthDate ? new Date(dup.birthDate).toLocaleDateString('fr-FR') : 'N/A';
+                list.innerHTML += `
+                    <li style="margin-bottom: 6px;">
+                        <strong>${dup.fullName}</strong> (ID: ${dup.personId})
+                        ${dup.birthDate ? ` - Né(e) le ${birthDateStr}` : ''}
+                        ${dup.birthPlace ? ` - ${dup.birthPlace}` : ''}
+                        <br><small style="color: #856404;">Score: ${Math.round(dup.similarityScore * 100)}% - ${dup.matchReason}</small>
+                    </li>
+                `;
+            });
+            list.innerHTML += '</ul>';
+            section.style.display = 'block';
+            document.getElementById('quickConfirmNoDuplicate').checked = false;
         }
         
         function closeAddPersonForm() {
             document.getElementById('addPersonModal').style.display = 'none';
         }
         
-        // Fermer le modal si on clique en dehors
+        // Fermer les modals si on clique en dehors
         window.onclick = function(event) {
-            const modal = document.getElementById('addPersonModal');
-            if (event.target == modal) {
+            const addPersonModal = document.getElementById('addPersonModal');
+            const quickCreateModal = document.getElementById('quickCreateParentModal');
+            
+            if (event.target == addPersonModal) {
                 closeAddPersonForm();
+            }
+            if (event.target == quickCreateModal) {
+                closeQuickCreateParent();
             }
         }
         
@@ -1663,6 +1964,9 @@
                 submitButton.textContent = '⏳ Vérification...';
                 
                 // Récupérer les données du formulaire
+                const parent1Id = document.getElementById('parent1Id').value;
+                const parent2Id = document.getElementById('parent2Id').value;
+                
                 const formData = {
                     firstName: document.getElementById('firstName').value.trim(),
                     lastName: document.getElementById('lastName').value.trim(),
@@ -1678,7 +1982,9 @@
                     photoUrl: document.getElementById('photoUrl').value.trim() || null,
                     biography: document.getElementById('biography').value.trim() || null,
                     gender: document.getElementById('gender').value,
-                    isAlive: document.getElementById('isAlive').checked
+                    isAlive: document.getElementById('isAlive').checked,
+                    parent1Id: parent1Id ? parseInt(parent1Id) : null,
+                    parent2Id: parent2Id ? parseInt(parent2Id) : null
                 };
                 
                 // Validation
@@ -1842,6 +2148,64 @@
                     </select>
                 </div>
                 
+                <!-- Section pour sélectionner les parents -->
+                <div class="form-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; color: #333;">👨‍👩‍👧 Relations familiales (optionnel)</h3>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="parent1Search">Parent 1 (optionnel)</label>
+                            <div class="parent-search-container">
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="text" 
+                                           id="parent1Search" 
+                                           placeholder="Rechercher ou créer un parent..."
+                                           autocomplete="off"
+                                           style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <button type="button" 
+                                            class="btn-secondary" 
+                                            onclick="openQuickCreateParent(1)"
+                                            style="padding: 8px 12px; white-space: nowrap;">
+                                        ➕ Créer
+                                    </button>
+                                </div>
+                                <input type="hidden" id="parent1Id" name="parent1Id" value="">
+                                <div id="parent1Suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                            </div>
+                            <div id="parent1Selected" class="selected-parent" style="display: none; margin-top: 8px; padding: 8px; background: #e8f5e9; border-radius: 4px;">
+                                <span id="parent1SelectedName"></span>
+                                <button type="button" onclick="clearParent(1)" style="margin-left: 10px; background: #f44336; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer;">✕</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="parent2Search">Parent 2 (optionnel)</label>
+                            <div class="parent-search-container">
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="text" 
+                                           id="parent2Search" 
+                                           placeholder="Rechercher ou créer un parent..."
+                                           autocomplete="off"
+                                           style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <button type="button" 
+                                            class="btn-secondary" 
+                                            onclick="openQuickCreateParent(2)"
+                                            style="padding: 8px 12px; white-space: nowrap;">
+                                        ➕ Créer
+                                    </button>
+                                </div>
+                                <input type="hidden" id="parent2Id" name="parent2Id" value="">
+                                <div id="parent2Suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                            </div>
+                            <div id="parent2Selected" class="selected-parent" style="display: none; margin-top: 8px; padding: 8px; background: #e8f5e9; border-radius: 4px;">
+                                <span id="parent2SelectedName"></span>
+                                <button type="button" onclick="clearParent(2)" style="margin-left: 10px; background: #f44336; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer;">✕</button>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 12px; color: #666; font-style: italic;">
+                        💡 Tapez pour rechercher un parent existant, ou cliquez sur "Créer" pour en ajouter un rapidement.
+                    </p>
+                </div>
+                
                 <div class="form-group">
                     <label for="photoUrl">URL de la photo</label>
                     <input type="url" id="photoUrl" name="photoUrl" placeholder="https://exemple.com/photo.jpg">
@@ -1867,6 +2231,61 @@
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="closeAddPersonForm()">Annuler</button>
                     <button type="submit" class="btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal pour création rapide de parent -->
+    <div id="quickCreateParentModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>➕ Créer un parent rapidement</h2>
+                <span class="close" onclick="closeQuickCreateParent()">&times;</span>
+            </div>
+            <form id="quickCreateParentForm" onsubmit="submitQuickCreateParent(event)">
+                <div class="form-group">
+                    <label for="quickFirstName">Prénom <span class="required">*</span></label>
+                    <input type="text" id="quickFirstName" name="quickFirstName" required>
+                </div>
+                <div class="form-group">
+                    <label for="quickLastName">Nom <span class="required">*</span></label>
+                    <input type="text" id="quickLastName" name="quickLastName" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="quickGender">Genre <span class="required">*</span></label>
+                        <select id="quickGender" name="quickGender" required>
+                            <option value="M">Homme</option>
+                            <option value="F">Femme</option>
+                            <option value="Other">Autre</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quickBirthDate">Date de naissance (recommandé)</label>
+                        <input type="date" id="quickBirthDate" name="quickBirthDate">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="quickBirthPlace">Lieu de naissance (recommandé)</label>
+                    <input type="text" id="quickBirthPlace" name="quickBirthPlace" placeholder="Ex: Paris, France">
+                </div>
+                
+                <!-- Section pour afficher les doublons potentiels -->
+                <div id="quickDuplicatesSection" style="display: none; margin-top: 15px; padding: 12px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
+                    <h4 style="margin-top: 0; color: #856404; font-size: 14px;">⚠️ Doublons potentiels détectés</h4>
+                    <div id="quickDuplicatesList"></div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; font-size: 12px;">
+                            <input type="checkbox" id="quickConfirmNoDuplicate" style="margin-right: 8px;">
+                            <span>Je confirme que ce n'est pas un doublon</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeQuickCreateParent()">Annuler</button>
+                    <button type="submit" class="btn-primary">Créer et sélectionner</button>
                 </div>
             </form>
         </div>
