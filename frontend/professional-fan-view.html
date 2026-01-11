@@ -162,6 +162,40 @@
             z-index: 10;
         }
 
+        .genealogy-card.clickable {
+            cursor: pointer;
+        }
+
+        .genealogy-card.clickable:hover {
+            transform: scale(1.08);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            border-color: #F39C12;
+        }
+
+        .genealogy-card.central.clickable:hover {
+            border-color: #E67E22;
+            box-shadow: 0 8px 25px rgba(243, 156, 18, 0.5);
+        }
+
+        .genealogy-card.sibling {
+            opacity: 0.6;
+            background: #f5f5f5;
+            border-color: #999;
+            border-style: dashed;
+        }
+
+        .genealogy-card.sibling:hover {
+            opacity: 0.9;
+            transform: scale(1.08);
+            box-shadow: 0 8px 25px rgba(153, 153, 153, 0.4);
+            border-color: #667eea;
+            border-style: solid;
+        }
+
+        .genealogy-card.sibling.clickable {
+            cursor: pointer;
+        }
+
         .genealogy-card.male {
             border-color: #4A90E2;
         }
@@ -327,6 +361,10 @@
 
     <div id="status" class="status"></div>
 
+    <div style="text-align: center; margin: 15px 0; padding: 10px; background: #e3f2fd; border-radius: 6px; color: #1976d2; font-size: 13px;">
+        💡 <strong>Astuce :</strong> Cliquez sur n'importe quelle carte (parents, grands-parents, frères/sœurs) pour voir la vue éventail de cette personne. Les cartes grisées en pointillés sont les frères et sœurs (cliquables).
+    </div>
+
     <div class="visualization-container">
         <div class="fan-viewport" id="fanViewport">
             <div class="fan-content" id="fanContent"></div>
@@ -338,6 +376,10 @@
         <div class="legend-item">
             <div class="legend-color" style="background: white; border-color: #F39C12;"></div>
             <span>Personne centrale</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f5f5f5; border-color: #999; border-style: dashed; opacity: 0.6;"></div>
+            <span>Frère/Sœur (cliquable)</span>
         </div>
         <div class="legend-item">
             <div class="legend-color" style="background: white; border-color: #4A90E2;"></div>
@@ -409,6 +451,16 @@
                 return;
             }
 
+            await loadFanViewForPerson(personId);
+        }
+
+        // Charger la vue éventail pour une personne spécifique
+        async function loadFanViewForPerson(personId, personName = null) {
+            if (!personId) {
+                updateStatus('ID de personne invalide', 'error');
+                return;
+            }
+
             updateStatus('Chargement...', 'loading');
             
             try {
@@ -418,8 +470,22 @@
                 const familyData = await response.json();
                 familyTreeData = familyData;
                 
-                renderFanView(familyData);
-                updateStatus('Vue éventail chargée avec succès', 'success');
+                // Mettre à jour le sélecteur de personne
+                const personSelect = document.getElementById('personSelect');
+                if (personSelect) {
+                    personSelect.value = personId;
+                }
+                
+                // Réinitialiser le zoom et le pan
+                currentZoom = 1;
+                currentPanX = 0;
+                currentPanY = 0;
+                updateViewport();
+                
+                await renderFanView(familyData);
+                
+                const displayName = personName || familyData.person?.fullName || `Personne ${personId}`;
+                updateStatus(`Vue éventail de "${displayName}" chargée avec succès`, 'success');
                 setTimeout(() => {
                     document.getElementById('status').style.display = 'none';
                 }, 2000);
@@ -449,9 +515,14 @@
             // Configuration de positionnement adaptatif
             const levelHeight = 220; // Espacement vertical entre générations
             const baseCardSpacing = 250; // Espacement horizontal de base
-            const startY = 50; // Position Y de départ
+            const startY = 50; // Position Y de départ (pour les générations les plus hautes)
             const cardWidth = 200; // Largeur d'une carte
             const minSpacing = cardWidth + 30; // Espacement minimum entre cartes (largeur + marge)
+            
+            // Calculer la position Y de base pour la personne centrale (en bas)
+            // La personne centrale sera au niveau le plus bas
+            const maxLevel = generations.length - 1;
+            const centralPersonY = startY + (maxLevel * levelHeight); // Personne centrale en bas
 
             // Stocker les positions calculées et les relations parent-enfant
             const cardPositions = new Map();
@@ -513,40 +584,30 @@
                         cardPositions.set(personData.person.id, x);
                     });
                 } else {
-                    // Pour les autres générations, centrer chaque personne par rapport à ses parents
-                    // Les parents sont déjà positionnés (niveau supérieur)
+                    // Pour les autres générations, grouper les enfants par parents communs
+                    // et les centrer collectivement pour éviter les problèmes de chevauchement
+                    
+                    // Grouper les personnes par leurs parents (clé = ensemble trié des IDs des parents)
+                    const childrenByParents = new Map();
+                    
                     for (const personData of generation) {
                         const personId = personData.person.id;
                         const parentIds = parentChildMap.get(personId) || [];
                         
                         if (parentIds.length > 0) {
-                            // Récupérer les positions des parents (qui sont déjà calculées car on va de haut en bas)
-                            const parentPositions = parentIds
-                                .map(pid => {
-                                    const pos = cardPositions.get(pid);
-                                    if (pos === undefined) {
-                                        console.warn(`Position non trouvée pour le parent ${pid} de ${personId}`);
-                                    }
-                                    return pos;
-                                })
-                                .filter(pos => pos !== undefined);
+                            // Créer une clé unique pour ce groupe de parents
+                            const parentKey = parentIds.sort((a, b) => a - b).join(',');
                             
-                            if (parentPositions.length > 0) {
-                                // Centrer par rapport aux parents
-                                const centerX = parentPositions.reduce((sum, pos) => sum + pos, 0) / parentPositions.length;
-                                cardPositions.set(personId, centerX);
-                                console.log(`✅ ${personData.person.fullName} (niveau ${level}) centré à ${centerX} par rapport à ${parentIds.length} parent(s)`);
-                            } else {
-                                // Si les parents ne sont pas trouvés, positionner séquentiellement
-                                console.warn(`⚠️ Parents non positionnés pour ${personData.person.fullName}, positionnement séquentiel`);
-                                const index = generation.findIndex(p => p.person.id === personId);
-                                const cardSpacing = Math.max(baseCardSpacing, minSpacing);
-                                const totalWidth = (generation.length - 1) * cardSpacing;
-                                const startX = 1500 - (totalWidth / 2);
-                                cardPositions.set(personId, startX + (index * cardSpacing));
+                            if (!childrenByParents.has(parentKey)) {
+                                childrenByParents.set(parentKey, {
+                                    parentIds: parentIds,
+                                    children: []
+                                });
                             }
+                            
+                            childrenByParents.get(parentKey).children.push(personData);
                         } else {
-                            // Pas de parents dans la vue, positionner séquentiellement
+                            // Pas de parents, traiter individuellement
                             const index = generation.findIndex(p => p.person.id === personId);
                             const cardSpacing = Math.max(baseCardSpacing, minSpacing);
                             const totalWidth = (generation.length - 1) * cardSpacing;
@@ -554,44 +615,199 @@
                             cardPositions.set(personId, startX + (index * cardSpacing));
                         }
                     }
+                    
+                    // Pour chaque groupe d'enfants avec les mêmes parents, centrer le groupe
+                    childrenByParents.forEach((group, parentKey) => {
+                        const { parentIds, children } = group;
+                        
+                        // Calculer le centre des parents
+                        const parentPositions = parentIds
+                            .map(pid => cardPositions.get(pid))
+                            .filter(pos => pos !== undefined);
+                        
+                        if (parentPositions.length > 0) {
+                            const parentCenters = parentPositions.map(pos => pos + (cardWidth / 2));
+                            const averageCenterX = parentCenters.reduce((sum, center) => sum + center, 0) / parentCenters.length;
+                            
+                            // Si un seul enfant, le centrer directement
+                            if (children.length === 1) {
+                                const childLeftX = averageCenterX - (cardWidth / 2);
+                                cardPositions.set(children[0].person.id, childLeftX);
+                                console.log(`✅ ${children[0].person.fullName} (niveau ${level}) centré à ${childLeftX} par rapport à ${parentIds.length} parent(s)`);
+                            } else {
+                                // Plusieurs enfants : centrer le groupe, puis espacer les enfants
+                                const childSpacing = Math.max(baseCardSpacing, minSpacing);
+                                // Largeur totale du groupe = (nombre d'enfants - 1) * espacement + largeur d'une carte
+                                const totalGroupWidth = (children.length - 1) * childSpacing + cardWidth;
+                                // Position du coin gauche du premier enfant pour que le centre du groupe soit à averageCenterX
+                                const groupStartX = averageCenterX - (totalGroupWidth / 2);
+                                
+                                children.forEach((childData, index) => {
+                                    const childX = groupStartX + (index * childSpacing);
+                                    cardPositions.set(childData.person.id, childX);
+                                });
+                                
+                                // Vérifier le centrage
+                                const firstChildX = cardPositions.get(children[0].person.id);
+                                const lastChildX = cardPositions.get(children[children.length - 1].person.id);
+                                const groupCenterX = (firstChildX + lastChildX + cardWidth) / 2;
+                                
+                                console.log(`✅ Groupe de ${children.length} enfants centré à ${groupCenterX} (idéal: ${averageCenterX}, diff: ${Math.abs(groupCenterX - averageCenterX).toFixed(1)}px) par rapport à ${parentIds.length} parent(s): ${children.map(c => c.person.fullName).join(', ')}`);
+                            }
+                        } else {
+                            // Parents non trouvés, positionner séquentiellement
+                            const cardSpacing = Math.max(baseCardSpacing, minSpacing);
+                            const totalWidth = (children.length - 1) * cardSpacing;
+                            const startX = 1500 - (totalWidth / 2);
+                            children.forEach((childData, index) => {
+                                cardPositions.set(childData.person.id, startX + (index * cardSpacing));
+                            });
+                        }
+                    });
                 }
             }
 
             // Vérifier et corriger les chevauchements pour chaque génération
-            // (en préservant autant que possible le centrage)
+            // (en préservant autant que possible le centrage des groupes)
             for (let level = 0; level < generations.length; level++) {
                 const generation = generations[level];
                 if (!generation || generation.length <= 1) continue;
 
-                // Trier les cartes par position X
-                const sortedCards = generation
-                    .map(p => ({
+                // Grouper les cartes par leurs parents pour préserver le centrage des groupes
+                const cardsByParents = new Map();
+                generation.forEach(p => {
+                    const parentIds = parentChildMap.get(p.person.id) || [];
+                    const parentKey = parentIds.length > 0 ? parentIds.sort((a, b) => a - b).join(',') : 'no-parents';
+                    
+                    if (!cardsByParents.has(parentKey)) {
+                        cardsByParents.set(parentKey, []);
+                    }
+                    cardsByParents.get(parentKey).push({
                         id: p.person.id,
                         x: cardPositions.get(p.person.id) || 1500,
-                        hasParents: parentChildMap.has(p.person.id)
+                        parentIds: parentIds
+                    });
+                });
+
+                // Trier toutes les cartes par position X pour détecter les chevauchements
+                const allCards = Array.from(cardPositions.entries())
+                    .filter(([id]) => generation.some(p => p.person.id === id))
+                    .map(([id, x]) => ({
+                        id: id,
+                        x: x,
+                        parentIds: parentChildMap.get(id) || []
                     }))
                     .sort((a, b) => a.x - b.x);
 
-                // Corriger les chevauchements en préservant le centrage quand possible
-                for (let i = 1; i < sortedCards.length; i++) {
-                    const prevX = sortedCards[i - 1].x;
-                    const currentX = sortedCards[i].x;
+                // Corriger les chevauchements en préservant le centrage des groupes
+                for (let i = 1; i < allCards.length; i++) {
+                    const prevX = allCards[i - 1].x;
+                    const currentX = allCards[i].x;
                     
                     if (currentX - prevX < minSpacing) {
-                        // Décaler la carte actuelle
-                        const newX = prevX + minSpacing;
-                        cardPositions.set(sortedCards[i].id, newX);
-                        sortedCards[i].x = newX;
+                        // Vérifier si les deux cartes ont les mêmes parents (même groupe)
+                        const prevParentKey = allCards[i - 1].parentIds.sort((a, b) => a - b).join(',');
+                        const currentParentKey = allCards[i].parentIds.sort((a, b) => a - b).join(',');
                         
-                        // Si la carte précédente avait des parents, essayer de réajuster
-                        // (optionnel, pour maintenir le centrage)
+                        if (prevParentKey === currentParentKey && prevParentKey !== '') {
+                            // Même groupe : décaler tout le groupe
+                            const groupCards = cardsByParents.get(prevParentKey) || [];
+                            const offset = (prevX + minSpacing) - currentX;
+                            
+                            groupCards.forEach(card => {
+                                if (card.id === allCards[i].id || card.x >= currentX) {
+                                    const newX = cardPositions.get(card.id) + offset;
+                                    cardPositions.set(card.id, newX);
+                                    // Mettre à jour dans allCards aussi
+                                    const cardInAll = allCards.find(c => c.id === card.id);
+                                    if (cardInAll) cardInAll.x = newX;
+                                }
+                            });
+                        } else {
+                            // Groupes différents : décaler seulement la carte actuelle
+                            const newX = prevX + minSpacing;
+                            cardPositions.set(allCards[i].id, newX);
+                            allCards[i].x = newX;
+                        }
                     }
                 }
             }
 
+            // Ajouter les siblings au niveau 0 (même génération que la personne centrale)
+            if (familyData.siblings && familyData.siblings.length > 0 && generations[0]) {
+                const centralPerson = generations[0].find(p => p.isCentral);
+                if (centralPerson) {
+                    const siblingSpacing = 250; // Espacement entre siblings
+                    
+                    // Créer un tableau avec la personne centrale + tous les siblings
+                    const allSiblings = [
+                        { person: centralPerson.person, isCentral: true },
+                        ...familyData.siblings.map(s => ({ person: s, isCentral: false }))
+                    ];
+                    
+                    // Trier tout le monde par date de naissance (du plus grand au plus jeune)
+                    const sortedAll = allSiblings.sort((a, b) => {
+                        // Si les deux ont une date de naissance, comparer
+                        if (a.person.birthDate && b.person.birthDate) {
+                            return new Date(a.person.birthDate) - new Date(b.person.birthDate);
+                        }
+                        // Si seulement a a une date, a est plus grand (vient en premier)
+                        if (a.person.birthDate && !b.person.birthDate) {
+                            return -1;
+                        }
+                        // Si seulement b a une date, b est plus grand (vient en premier)
+                        if (!a.person.birthDate && b.person.birthDate) {
+                            return 1;
+                        }
+                        // Si aucun n'a de date, mettre la personne centrale en premier
+                        if (a.isCentral) return -1;
+                        if (b.isCentral) return 1;
+                        // Sinon garder l'ordre original
+                        return 0;
+                    });
+                    
+                    // Trouver l'index de la personne centrale dans l'ordre trié
+                    const centralIndex = sortedAll.findIndex(item => item.isCentral);
+                    
+                    // Récupérer la position X existante de la personne centrale (déjà calculée)
+                    const existingCentralX = cardPositions.get(centralPerson.person.id) || 1500;
+                    
+                    // Positionner tous les siblings dans l'ordre chronologique autour de la personne centrale
+                    sortedAll.forEach((item, index) => {
+                        if (item.isCentral) {
+                            // La personne centrale sera rendue dans la boucle des générations plus bas
+                            // On met juste à jour sa position dans cardPositions pour qu'elle soit dans l'ordre chronologique
+                            const offset = index - centralIndex;
+                            const newCentralX = existingCentralX + (offset * siblingSpacing);
+                            cardPositions.set(item.person.id, newCentralX);
+                            return;
+                        }
+                        
+                        // Calculer le décalage par rapport à la position centrale
+                        const offset = index - centralIndex;
+                        const x = existingCentralX + (offset * siblingSpacing);
+                        const y = centralPersonY; // Même niveau que la personne centrale (en bas)
+                        
+                        // Créer la carte sibling
+                        const card = createGenealogyCard(item.person, 0, x, y, false, true);
+                        content.appendChild(card);
+                        allCards.push({ 
+                            card, 
+                            person: item.person, 
+                            generation: 0,
+                            x: x,
+                            y: y,
+                            isSibling: true
+                        });
+                    });
+                }
+            }
+
             // Rendre chaque génération avec les positions calculées
+            // INVERSION : La personne centrale (level 0) est en bas, les parents au-dessus
             generations.forEach((generation, level) => {
-                const y = startY + (level * levelHeight);
+                // Inverser l'ordre : level 0 (personne centrale) en bas, level max en haut
+                const y = startY + ((maxLevel - level) * levelHeight);
 
                 generation.forEach((personData) => {
                     const x = cardPositions.get(personData.person.id) || 1500;
@@ -609,6 +825,15 @@
 
             // Dessiner les connexions
             await drawConnections(generations, parentChildMap);
+
+            // Centrer la vue sur la personne centrale immédiatement (avant l'animation)
+            // Trouver la position de la personne centrale depuis cardPositions
+            const centralPersonData = generations[0]?.find(p => p.isCentral);
+            if (centralPersonData) {
+                const centralX = cardPositions.get(centralPersonData.person.id) || 1500;
+                const centralY = centralPersonY; // Personne centrale en bas maintenant
+                centerOnPosition(centralX, centralY);
+            }
 
             // Animer l'apparition des cartes
             animateCards();
@@ -686,7 +911,7 @@
         }
 
         // Créer une carte généalogique professionnelle
-        function createGenealogyCard(person, generation, x, y, isCentral) {
+        function createGenealogyCard(person, generation, x, y, isCentral, isSibling = false) {
             const card = document.createElement('div');
             card.className = 'genealogy-card';
             card.style.left = x + 'px';
@@ -696,6 +921,9 @@
 
             if (isCentral) {
                 card.classList.add('central');
+            }
+            if (isSibling) {
+                card.classList.add('sibling');
             }
             if (person.gender === 'Male' || person.gender === 'M') {
                 card.classList.add('male');
@@ -747,6 +975,24 @@
                 </div>
             `;
 
+            // Ajouter la classe clickable et le gestionnaire d'événements
+            // Ne pas rendre la carte centrale cliquable (elle est déjà au centre)
+            // Les siblings sont toujours cliquables
+            if (!isCentral) {
+                card.classList.add('clickable');
+                if (isSibling) {
+                    card.title = 'Frère/Sœur - Cliquez pour voir la vue éventail de cette personne';
+                } else {
+                    card.title = 'Cliquez pour voir la vue éventail de cette personne';
+                }
+                card.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    loadFanViewForPerson(person.id, person.fullName);
+                });
+            } else {
+                card.title = 'Personne centrale';
+            }
+
             return card;
         }
 
@@ -767,8 +1013,10 @@
                     const parentIds = parentChildMap ? parentChildMap.get(personId) || [] : [];
                     
                     if (parentIds.length > 0) {
+                        // INVERSION : Les parents sont maintenant AU-DESSUS des enfants
                         const childX = parseInt(card.style.left) + 100; // Centre de la carte enfant
-                        const childY = parseInt(card.style.top) + 180; // Bas de la carte enfant
+                        const childTopY = parseInt(card.style.top); // Haut de la carte enfant (les enfants sont en bas)
+                        const childBottomY = childTopY + 180; // Bas de la carte enfant
 
                         // Récupérer les cartes des parents
                         const parentCards = parentIds
@@ -778,26 +1026,18 @@
                         if (parentCards.length > 0) {
                             // Calculer le centre entre tous les parents (déjà centrés)
                             const parentXs = parentCards.map(c => parseInt(c.style.left) + 100);
-                            const parentYs = parentCards.map(c => parseInt(c.style.top) + 180);
+                            const parentTopYs = parentCards.map(c => parseInt(c.style.top)); // Haut des cartes parents
+                            const parentBottomYs = parentCards.map(c => parseInt(c.style.top) + 180); // Bas des cartes parents
                             const minParentX = Math.min(...parentXs);
                             const maxParentX = Math.max(...parentXs);
                             const midX = (minParentX + maxParentX) / 2;
-                            const minParentY = Math.min(...parentYs);
+                            const maxParentBottomY = Math.max(...parentBottomYs); // Bas des parents (ils sont au-dessus, donc Y plus petit)
                             
-                            // Point de connexion vertical (au-dessus des cartes parents)
-                            const connectionY = minParentY - 20; // 20px au-dessus des cartes parents
-
-                            // Ligne verticale depuis l'enfant jusqu'au point de connexion
-                            const verticalFromChild = document.createElement('div');
-                            verticalFromChild.className = 'family-connection connection-parent-child';
-                            verticalFromChild.style.left = (childX - 1) + 'px';
-                            verticalFromChild.style.top = childY + 'px';
-                            verticalFromChild.style.height = (connectionY - childY) + 'px';
-                            verticalFromChild.style.width = '2px';
-                            content.appendChild(verticalFromChild);
-                            allConnections.push(verticalFromChild);
+                            // Point de connexion vertical (en dessous des cartes parents, au-dessus de l'enfant)
+                            const connectionY = maxParentBottomY + 20; // 20px en dessous du bas des cartes parents
 
                             // Ligne horizontale de l'enfant vers le centre (si nécessaire)
+                            // Cette ligne part du centre de l'enfant vers le point de connexion centré
                             if (Math.abs(childX - midX) > 5) {
                                 const horizontalFromChild = document.createElement('div');
                                 horizontalFromChild.className = 'family-connection connection-parent-child';
@@ -809,30 +1049,41 @@
                                 allConnections.push(horizontalFromChild);
                             }
 
-                            // Ligne horizontale au-dessus des parents
-                            const horizontalTop = document.createElement('div');
-                            horizontalTop.className = 'family-connection connection-parent-child';
-                            horizontalTop.style.left = minParentX + 'px';
-                            horizontalTop.style.top = connectionY + 'px';
-                            horizontalTop.style.width = (maxParentX - minParentX) + 'px';
-                            horizontalTop.style.height = '2px';
-                            content.appendChild(horizontalTop);
-                            allConnections.push(horizontalTop);
+                            // Ligne verticale depuis le point de connexion (centré entre les parents) vers le haut de l'enfant
+                            // Cette ligne part toujours du point de connexion centré (midX), pas du centre de l'enfant
+                            const verticalToChild = document.createElement('div');
+                            verticalToChild.className = 'family-connection connection-parent-child';
+                            verticalToChild.style.left = (midX - 1) + 'px'; // Centré entre les parents
+                            verticalToChild.style.top = connectionY + 'px';
+                            verticalToChild.style.height = Math.max(0, childTopY - connectionY) + 'px'; // Vers le bas (hauteur positive)
+                            verticalToChild.style.width = '2px';
+                            content.appendChild(verticalToChild);
+                            allConnections.push(verticalToChild);
 
-                            // Lignes verticales depuis le point de connexion vers chaque parent
+                            // Ligne horizontale en dessous des parents
+                            const horizontalBottom = document.createElement('div');
+                            horizontalBottom.className = 'family-connection connection-parent-child';
+                            horizontalBottom.style.left = minParentX + 'px';
+                            horizontalBottom.style.top = connectionY + 'px';
+                            horizontalBottom.style.width = (maxParentX - minParentX) + 'px';
+                            horizontalBottom.style.height = '2px';
+                            content.appendChild(horizontalBottom);
+                            allConnections.push(horizontalBottom);
+
+                            // Lignes verticales depuis chaque parent vers le point de connexion (vers le bas)
                             parentCards.forEach((parentCard) => {
                                 const parentX = parseInt(parentCard.style.left) + 100;
-                                const parentY = parseInt(parentCard.style.top) + 180;
+                                const parentBottomY = parseInt(parentCard.style.top) + 180; // Bas de la carte parent
                                 
-                                // Ligne verticale vers le parent
-                                const verticalToParent = document.createElement('div');
-                                verticalToParent.className = 'family-connection connection-parent-child';
-                                verticalToParent.style.left = (parentX - 1) + 'px';
-                                verticalToParent.style.top = connectionY + 'px';
-                                verticalToParent.style.height = (parentY - connectionY) + 'px';
-                                verticalToParent.style.width = '2px';
-                                content.appendChild(verticalToParent);
-                                allConnections.push(verticalToParent);
+                                // Ligne verticale depuis le bas du parent vers le point de connexion
+                                const verticalFromParent = document.createElement('div');
+                                verticalFromParent.className = 'family-connection connection-parent-child';
+                                verticalFromParent.style.left = (parentX - 1) + 'px';
+                                verticalFromParent.style.top = parentBottomY + 'px';
+                                verticalFromParent.style.height = Math.max(0, connectionY - parentBottomY) + 'px'; // Vers le bas (hauteur positive)
+                                verticalFromParent.style.width = '2px';
+                                content.appendChild(verticalFromParent);
+                                allConnections.push(verticalFromParent);
                             });
                         }
                     }
@@ -872,6 +1123,55 @@
             const content = document.getElementById('fanContent');
             content.style.transform = `translate(${currentPanX}px, ${currentPanY}px) scale(${currentZoom})`;
             document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+        }
+
+        // Centrer la vue sur une position donnée (utilisé pour centrer sur la personne centrale)
+        function centerOnPosition(x, y) {
+            const viewport = document.getElementById('fanViewport');
+            const viewportRect = viewport.getBoundingClientRect();
+            const viewportWidth = viewportRect.width;
+            const viewportHeight = viewportRect.height;
+
+            const cardWidth = 200; // Largeur de la carte
+            const cardHeight = 180; // Hauteur approximative de la carte
+
+            // Centre de la carte
+            const cardCenterX = x + (cardWidth / 2);
+            const cardCenterY = y + (cardHeight / 2);
+
+            // Calculer le pan nécessaire pour centrer la carte dans le viewport
+            // On doit tenir compte du zoom actuel
+            const scaledCardCenterX = cardCenterX * currentZoom;
+            const scaledCardCenterY = cardCenterY * currentZoom;
+
+            // Centrer dans le viewport
+            currentPanX = (viewportWidth / 2) - scaledCardCenterX;
+            currentPanY = (viewportHeight / 2) - scaledCardCenterY;
+
+            // Désactiver temporairement la transition pour un centrage instantané
+            const content = document.getElementById('fanContent');
+            const originalTransition = content.style.transition;
+            content.style.transition = 'none';
+            
+            updateViewport();
+            
+            // Réactiver la transition après un court délai
+            setTimeout(() => {
+                content.style.transition = originalTransition || 'transform 0.3s ease';
+            }, 50);
+        }
+
+        // Centrer la vue sur la personne centrale (méthode alternative utilisant le DOM)
+        function centerOnCentralPerson() {
+            const centralCard = document.querySelector('.genealogy-card.central');
+            if (!centralCard) {
+                console.warn('Carte centrale non trouvée');
+                return;
+            }
+
+            const cardX = parseInt(centralCard.style.left) || 0;
+            const cardY = parseInt(centralCard.style.top) || 0;
+            centerOnPosition(cardX, cardY);
         }
 
         // Gestion du drag pour pan
@@ -916,13 +1216,23 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadPersons();
             
+            // Ajouter un event listener sur le select pour charger automatiquement la vue éventail
+            const personSelect = document.getElementById('personSelect');
+            personSelect.addEventListener('change', (e) => {
+                const selectedPersonId = e.target.value;
+                if (selectedPersonId) {
+                    // Charger automatiquement la vue éventail pour la personne sélectionnée
+                    loadFanViewForPerson(selectedPersonId);
+                }
+            });
+            
             // Vérifier si un personId est passé en paramètre URL
             const urlParams = new URLSearchParams(window.location.search);
             const personId = urlParams.get('personId');
             if (personId) {
-                document.getElementById('personSelect').value = personId;
+                personSelect.value = personId;
                 setTimeout(() => {
-                    loadFanView();
+                    loadFanViewForPerson(personId);
                 }, 500);
             }
         });
