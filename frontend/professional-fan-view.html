@@ -196,6 +196,45 @@
             cursor: pointer;
         }
 
+        /* Style pour les enfants : plus petits et plus grisés */
+        .genealogy-card.child {
+            width: 160px;
+            min-height: 140px;
+            opacity: 0.4;
+            background: #e8e8e8;
+            border-color: #999;
+            border-style: dashed;
+            font-size: 0.9em;
+        }
+
+        .genealogy-card.child .card-name {
+            font-size: 13px;
+        }
+
+        .genealogy-card.child .card-details {
+            font-size: 10px;
+        }
+
+        .genealogy-card.child .card-id {
+            font-size: 9px;
+        }
+
+        .genealogy-card.child .card-profession {
+            font-size: 10px;
+        }
+
+        .genealogy-card.child:hover {
+            opacity: 0.7;
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(153, 153, 153, 0.4);
+            border-color: #667eea;
+            border-style: solid;
+        }
+
+        .genealogy-card.child.clickable {
+            cursor: pointer;
+        }
+
         .genealogy-card.male {
             border-color: #4A90E2;
         }
@@ -272,6 +311,17 @@
         .connection-marriage {
             height: 2px;
             background: #E24A90;
+        }
+
+        /* Connexions vers les enfants - gris à angle droit sans croix */
+        .connection-to-child {
+            background: #999 !important; /* Gris */
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+
+        .connection-to-child:hover {
+            opacity: 0.9;
         }
 
         .status {
@@ -362,7 +412,7 @@
     <div id="status" class="status"></div>
 
     <div style="text-align: center; margin: 15px 0; padding: 10px; background: #e3f2fd; border-radius: 6px; color: #1976d2; font-size: 13px;">
-        💡 <strong>Astuce :</strong> Cliquez sur n'importe quelle carte (parents, grands-parents, frères/sœurs) pour voir la vue éventail de cette personne. Les cartes grisées en pointillés sont les frères et sœurs (cliquables).
+        💡 <strong>Astuce :</strong> Cliquez sur n'importe quelle carte (parents, grands-parents, frères/sœurs, enfants) pour voir la vue éventail de cette personne. Les cartes grisées en pointillés sont les frères/sœurs et enfants (cliquables).
     </div>
 
     <div class="visualization-container">
@@ -380,6 +430,10 @@
         <div class="legend-item">
             <div class="legend-color" style="background: #f5f5f5; border-color: #999; border-style: dashed; opacity: 0.6;"></div>
             <span>Frère/Sœur (cliquable)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f5f5f5; border-color: #999; border-style: dashed; opacity: 0.6;"></div>
+            <span>Enfant (cliquable)</span>
         </div>
         <div class="legend-item">
             <div class="legend-color" style="background: white; border-color: #4A90E2;"></div>
@@ -501,6 +555,9 @@
             content.innerHTML = '';
             allCards = [];
             allConnections = [];
+            
+            // Note: Le code SVG avec courbes est conservé dans PROPOSITION_DESIGN_LIENS_ENFANTS.md
+            // pour référence future si besoin
 
             updateStatus('Construction de l\'arbre généalogique...', 'loading');
 
@@ -519,27 +576,37 @@
             const cardWidth = 200; // Largeur d'une carte
             const minSpacing = cardWidth + 30; // Espacement minimum entre cartes (largeur + marge)
             
-            // Calculer la position Y de base pour la personne centrale (en bas)
-            // La personne centrale sera au niveau le plus bas
-            const maxLevel = generations.length - 1;
-            const centralPersonY = startY + (maxLevel * levelHeight); // Personne centrale en bas
+            // Trouver les niveaux min et max (pour gérer les niveaux négatifs des enfants)
+            const levels = Object.keys(generations).map(Number).sort((a, b) => a - b);
+            const minLevel = Math.min(...levels);
+            const maxLevel = Math.max(...levels);
+            
+            // Calculer la position Y de base pour la personne centrale
+            // La personne centrale est au niveau 0, on la place en bas des ascendants
+            // Si on a des enfants (niveau -1), la personne centrale sera au milieu
+            const centralPersonY = startY + (maxLevel * levelHeight); // Personne centrale en bas des ascendants
 
             // Stocker les positions calculées et les relations parent-enfant
             const cardPositions = new Map();
             const parentChildMap = new Map(); // Map: childId -> [parentIds]
+            const childParentMap = new Map(); // Map: parentId -> [childIds] (pour les enfants)
             const personLevelMap = new Map(); // Map: personId -> level
 
-            // Créer une map des niveaux pour chaque personne
-            for (let level = 0; level < generations.length; level++) {
+            // Créer une map des niveaux pour chaque personne (incluant les niveaux négatifs)
+            for (const level of levels) {
                 const generation = generations[level];
-                for (const personData of generation) {
-                    personLevelMap.set(personData.person.id, level);
+                if (generation) {
+                    for (const personData of generation) {
+                        personLevelMap.set(personData.person.id, level);
+                    }
                 }
             }
 
             // Construire la map des relations parent-enfant en utilisant le cache des données familiales
-            for (let level = 0; level < generations.length; level++) {
+            for (const level of levels) {
                 const generation = generations[level];
+                if (!generation) continue;
+                
                 for (const personData of generation) {
                     const personId = personData.person.id;
                     const personFamilyData = familyDataCache.get(personId);
@@ -560,20 +627,56 @@
                     }
                 }
             }
+            
+            // Construire la map des relations enfant-parent (pour les enfants de la personne centrale)
+            const childrenGeneration = generations[-1];
+            if (childrenGeneration) {
+                const centralPersonId = familyData.person.id;
+                const childrenIds = childrenGeneration.map(c => c.person.id);
+                childParentMap.set(centralPersonId, childrenIds);
+                console.log(`👶 ${familyData.person.fullName} a ${childrenIds.length} enfant(s) dans la vue:`, childrenIds);
+            }
 
             // Debug: Afficher la structure des générations
             console.log('📊 Structure des générations:');
-            generations.forEach((gen, idx) => {
-                console.log(`  Niveau ${idx}: ${gen.length} personne(s) - ${gen.map(p => p.person.fullName).join(', ')}`);
-            });
+            for (const level of levels) {
+                const gen = generations[level];
+                if (gen) {
+                    console.log(`  Niveau ${level}: ${gen.length} personne(s) - ${gen.map(p => p.person.fullName).join(', ')}`);
+                }
+            }
             console.log('📋 Map parent-enfant:', Array.from(parentChildMap.entries()));
+            console.log('👶 Map enfant-parent:', Array.from(childParentMap.entries()));
 
             // Calculer les positions en partant de la génération la plus haute
             // et en descendant niveau par niveau, en centrant chaque personne par rapport à ses parents
-            for (let level = generations.length - 1; level >= 0; level--) {
+            for (let level = maxLevel; level >= minLevel; level--) {
                 const generation = generations[level];
+                if (!generation) continue;
                 
-                if (level === generations.length - 1) {
+                // Gérer les enfants (niveau -1) : positionner en dessous de la personne centrale
+                if (level === -1) {
+                    const centralPersonId = familyData.person.id;
+                    const centralPersonX = cardPositions.get(centralPersonId) || 1500;
+                    const centralPersonCenterX = centralPersonX + (cardWidth / 2);
+                    
+                    // Centrer les enfants par rapport à la personne centrale
+                    // Les cartes enfants font 160px de large (plus petites)
+                    const childCardWidth = 160;
+                    const childSpacing = Math.max(baseCardSpacing, minSpacing);
+                    const totalGroupWidth = (generation.length - 1) * childSpacing + childCardWidth;
+                    const groupStartX = centralPersonCenterX - (totalGroupWidth / 2);
+                    
+                    generation.forEach((childData, index) => {
+                        const childX = groupStartX + (index * childSpacing);
+                        cardPositions.set(childData.person.id, childX);
+                    });
+                    
+                    console.log(`👶 ${generation.length} enfant(s) centré(s) par rapport à ${familyData.person.fullName}`);
+                    continue;
+                }
+                
+                if (level === maxLevel) {
                     // Dernière génération (la plus haute) : positionner séquentiellement
                     const cardSpacing = Math.max(baseCardSpacing, minSpacing);
                     const totalWidth = (generation.length - 1) * cardSpacing;
@@ -669,7 +772,7 @@
 
             // Vérifier et corriger les chevauchements pour chaque génération
             // (en préservant autant que possible le centrage des groupes)
-            for (let level = 0; level < generations.length; level++) {
+            for (const level of levels) {
                 const generation = generations[level];
                 if (!generation || generation.length <= 1) continue;
 
@@ -804,27 +907,40 @@
             }
 
             // Rendre chaque génération avec les positions calculées
-            // INVERSION : La personne centrale (level 0) est en bas, les parents au-dessus
-            generations.forEach((generation, level) => {
-                // Inverser l'ordre : level 0 (personne centrale) en bas, level max en haut
-                const y = startY + ((maxLevel - level) * levelHeight);
+            // INVERSION : La personne centrale (level 0) est en bas, les parents au-dessus, les enfants en dessous
+            for (const level of levels) {
+                const generation = generations[level];
+                if (!generation) continue;
+                
+                let y;
+                if (level === -1) {
+                    // Enfants : en dessous de la personne centrale
+                    y = centralPersonY + levelHeight;
+                } else {
+                    // Ascendants : au-dessus de la personne centrale
+                    y = startY + ((maxLevel - level) * levelHeight);
+                }
 
                 generation.forEach((personData) => {
                     const x = cardPositions.get(personData.person.id) || 1500;
-                    const card = createGenealogyCard(personData.person, personData.generation, x, y, personData.isCentral);
+                    // Les enfants sont grisés et cliquables (comme les siblings)
+                    const isChild = level === -1;
+                    const isSibling = false; // Les enfants ne sont pas des siblings
+                    const card = createGenealogyCard(personData.person, personData.generation, x, y, personData.isCentral, isSibling, isChild);
                     content.appendChild(card);
                     allCards.push({ 
                         card, 
                         person: personData.person, 
                         generation: personData.generation,
                         x: x,
-                        y: y
+                        y: y,
+                        isChild: isChild
                     });
                 });
-            });
+            }
 
             // Dessiner les connexions
-            await drawConnections(generations, parentChildMap);
+            await drawConnections(generations, parentChildMap, childParentMap);
 
             // Centrer la vue sur la personne centrale immédiatement (avant l'animation)
             // Trouver la position de la personne centrale depuis cardPositions
@@ -890,6 +1006,31 @@
             familyDataCache.set(familyData.person.id, familyData);
             await loadParentsRecursive(familyData.person, 0, maxDepth);
             
+            // Charger les enfants de la personne centrale (niveau -1)
+            if (familyData.children && familyData.children.length > 0) {
+                const childrenGeneration = -1;
+                if (!generations[childrenGeneration]) {
+                    generations[childrenGeneration] = [];
+                }
+                
+                // Trier les enfants par date de naissance (du plus âgé au plus jeune)
+                const sortedChildren = [...familyData.children].sort((a, b) => {
+                    const dateA = a.birthDate ? new Date(a.birthDate) : new Date('9999-12-31');
+                    const dateB = b.birthDate ? new Date(b.birthDate) : new Date('9999-12-31');
+                    return dateA - dateB;
+                });
+                
+                sortedChildren.forEach(child => {
+                    generations[childrenGeneration].push({
+                        person: child,
+                        generation: childrenGeneration,
+                        isCentral: false
+                    });
+                });
+                
+                console.log(`👶 ${sortedChildren.length} enfant(s) chargé(s) pour ${familyData.person.fullName}`);
+            }
+            
             // Retourner les générations et le cache des données familiales
             return { generations, familyDataCache };
 
@@ -911,7 +1052,7 @@
         }
 
         // Créer une carte généalogique professionnelle
-        function createGenealogyCard(person, generation, x, y, isCentral, isSibling = false) {
+        function createGenealogyCard(person, generation, x, y, isCentral, isSibling = false, isChild = false) {
             const card = document.createElement('div');
             card.className = 'genealogy-card';
             card.style.left = x + 'px';
@@ -924,6 +1065,9 @@
             }
             if (isSibling) {
                 card.classList.add('sibling');
+            }
+            if (isChild) {
+                card.classList.add('child');
             }
             if (person.gender === 'Male' || person.gender === 'M') {
                 card.classList.add('male');
@@ -977,10 +1121,12 @@
 
             // Ajouter la classe clickable et le gestionnaire d'événements
             // Ne pas rendre la carte centrale cliquable (elle est déjà au centre)
-            // Les siblings sont toujours cliquables
+            // Les siblings et enfants sont toujours cliquables
             if (!isCentral) {
                 card.classList.add('clickable');
-                if (isSibling) {
+                if (isChild) {
+                    card.title = 'Enfant - Cliquez pour voir la vue éventail de cette personne';
+                } else if (isSibling) {
                     card.title = 'Frère/Sœur - Cliquez pour voir la vue éventail de cette personne';
                 } else {
                     card.title = 'Cliquez pour voir la vue éventail de cette personne';
@@ -997,12 +1143,14 @@
         }
 
         // Dessiner les connexions familiales (utilise les positions déjà calculées et centrées)
-        async function drawConnections(generations, parentChildMap) {
+        async function drawConnections(generations, parentChildMap, childParentMap) {
             const content = document.getElementById('fanContent');
 
-            // Utiliser la map parent-enfant déjà construite
-            for (let level = 0; level < generations.length - 1; level++) {
+            // Dessiner les connexions ascendantes (parents → enfants)
+            const levels = Object.keys(generations).map(Number).sort((a, b) => a - b);
+            for (const level of levels) {
                 const currentGeneration = generations[level];
+                if (!currentGeneration) continue;
 
                 for (const personData of currentGeneration) {
                     const personId = personData.person.id;
@@ -1088,6 +1236,67 @@
                         }
                     }
                 }
+            }
+            
+            // Dessiner les connexions descendantes (personne centrale → enfants) avec traits à angle droit
+            if (childParentMap && childParentMap.size > 0) {
+                childParentMap.forEach((childIds, parentId) => {
+                    const parentCard = document.querySelector(`[data-person-id="${parentId}"]`);
+                    if (!parentCard) return;
+                    
+                    const parentX = parseInt(parentCard.style.left) + 100; // Centre de la carte parent
+                    const parentTopY = parseInt(parentCard.style.top);
+                    const parentBottomY = parentTopY + 180; // Bas de la carte parent
+                    
+                    // Récupérer les cartes des enfants
+                    const childCards = childIds
+                        .map(cid => document.querySelector(`[data-person-id="${cid}"]`))
+                        .filter(c => c !== null);
+                    
+                    if (childCards.length > 0) {
+                        // Point de connexion vertical (en dessous de la carte parent)
+                        const connectionY = parentBottomY + 20; // 20px en dessous du bas de la carte parent
+                        
+                        // Pour chaque enfant, créer une connexion individuelle à angle droit (sans croix)
+                        childCards.forEach((childCard) => {
+                            const cardWidth = childCard.classList.contains('child') ? 160 : 200;
+                            const childX = parseInt(childCard.style.left) + (cardWidth / 2);
+                            const childTopY = parseInt(childCard.style.top);
+                            
+                            // Ligne verticale depuis le bas de la personne centrale vers le point de connexion
+                            const verticalFromParent = document.createElement('div');
+                            verticalFromParent.className = 'family-connection connection-to-child';
+                            verticalFromParent.style.left = (parentX - 1) + 'px';
+                            verticalFromParent.style.top = parentBottomY + 'px';
+                            verticalFromParent.style.height = Math.max(0, connectionY - parentBottomY) + 'px';
+                            verticalFromParent.style.width = '2px';
+                            content.appendChild(verticalFromParent);
+                            allConnections.push(verticalFromParent);
+                            
+                            // Ligne horizontale depuis le parent vers l'enfant (si nécessaire)
+                            if (Math.abs(parentX - childX) > 5) {
+                                const horizontalLine = document.createElement('div');
+                                horizontalLine.className = 'family-connection connection-to-child';
+                                horizontalLine.style.left = Math.min(parentX, childX) + 'px';
+                                horizontalLine.style.top = connectionY + 'px';
+                                horizontalLine.style.width = Math.abs(parentX - childX) + 'px';
+                                horizontalLine.style.height = '2px';
+                                content.appendChild(horizontalLine);
+                                allConnections.push(horizontalLine);
+                            }
+                            
+                            // Ligne verticale depuis le point de connexion vers le haut de l'enfant
+                            const verticalToChild = document.createElement('div');
+                            verticalToChild.className = 'family-connection connection-to-child';
+                            verticalToChild.style.left = (childX - 1) + 'px';
+                            verticalToChild.style.top = connectionY + 'px';
+                            verticalToChild.style.height = Math.max(0, childTopY - connectionY) + 'px';
+                            verticalToChild.style.width = '2px';
+                            content.appendChild(verticalToChild);
+                            allConnections.push(verticalToChild);
+                        });
+                    }
+                });
             }
         }
 
