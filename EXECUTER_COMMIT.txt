@@ -1,0 +1,22 @@
+EXÉCUTEZ CES COMMANDES DANS VOTRE TERMINAL :
+
+cd /Users/kassyimbadollou/Documents/gegeDot
+
+git add frontend/professional-fan-view.html
+git add scripts/diagnostic_jean.sql
+git add scripts/check_and_create_jean.sql
+git add scripts/create_jean_testfamille_simple.sql
+git add scripts/add_test_family_large.sql
+git add scripts/execute_test_family.sh
+git add INSTRUCTIONS_MANUAL.md
+git add SOLUTION_RAPIDE.md
+git add COMMIT_OPTIMISATIONS.md
+
+git commit -m "Optimisation affichage carte centrale + Scripts test famille nombreuse
+
+- Affichage immédiat de la carte centrale (sans latence)
+- Centrage automatique dès le chargement
+- Rendu non bloquant des connexions avec requestAnimationFrame
+- Animation optimisée des autres cartes
+- Scripts SQL pour créer une famille de test avec 30 enfants
+- Scripts de diagnostic pour Jean TestFamille"

@@ -1,8 +1,4 @@
-# Instructions pour le commit
-
-Le shell semble avoir un problème. Veuillez exécuter les commandes suivantes directement dans votre terminal :
-
-```bash
+#!/bin/bash
 cd /Users/kassyimbadollou/Documents/gegeDot
 
 # Ajouter les fichiers modifiés
@@ -22,9 +18,5 @@ git commit -m "Ajout des conjoints Camilla et Kate avec leurs ascendants + Corre
 - Délai de 2 secondes après chargement pour éviter le survol automatique prématuré
 - Nettoyage explicite des cartes de conjoint avant chargement de nouvelle vue
 - Gestion silencieuse des 404 pour les personnes sans conjoint"
-```
 
-Ou exécutez simplement le script :
-```bash
-./scripts/commit_spouses_fix.sh
-```
+echo "Commit créé avec succès!"

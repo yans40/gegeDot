@@ -1,5 +1,6 @@
 using AutoMapper;
 using GegeDot.Core.Entities;
+using GegeDot.Core.Interfaces;
 using GegeDot.Services.DTOs;
 using GegeDot.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -12,17 +13,20 @@ public class PersonsController : ControllerBase
 {
     private readonly IPersonService _personService;
     private readonly IDuplicateDetectionService _duplicateDetectionService;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ILogger<PersonsController> _logger;
 
     public PersonsController(
         IPersonService personService, 
         IDuplicateDetectionService duplicateDetectionService,
+        IUnitOfWork unitOfWork,
         IMapper mapper,
         ILogger<PersonsController> logger)
     {
         _personService = personService;
         _duplicateDetectionService = duplicateDetectionService;
+        _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
     }
@@ -238,6 +242,47 @@ public class PersonsController : ControllerBase
     }
 
     /// <summary>
+    /// Récupère le conjoint actuel d'une personne
+    /// </summary>
+    [HttpGet("{id}/spouse")]
+    public async Task<ActionResult<PersonDto>> GetCurrentSpouse(int id)
+    {
+        try
+        {
+            var person = await _personService.GetPersonByIdAsync(id);
+            if (person == null)
+                return NotFound($"Personne avec l'ID {id} non trouvée");
+
+            // Récupérer toutes les relations de la personne
+            var relationships = await _unitOfWork.Relationships.GetByPersonIdAsync(id);
+            
+            // Trouver le mariage actuel (Spouse = 3, sans EndDate)
+            var currentMarriage = relationships
+                .FirstOrDefault(r => r.RelationshipType == RelationshipType.Spouse && r.EndDate == null);
+
+            if (currentMarriage == null)
+                return NotFound($"Aucun conjoint actuel trouvé pour la personne {id}");
+
+            // Déterminer qui est le conjoint
+            var spouseId = currentMarriage.Person1Id == id 
+                ? currentMarriage.Person2Id 
+                : currentMarriage.Person1Id;
+
+            // Récupérer le conjoint
+            var spouse = await _personService.GetPersonByIdAsync(spouseId);
+            if (spouse == null)
+                return NotFound($"Conjoint avec l'ID {spouseId} non trouvé");
+
+            return Ok(spouse);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la récupération du conjoint de la personne {PersonId}", id);
+            return StatusCode(500, "Erreur interne du serveur");
+        }
+    }
+
+    /// <summary>
     /// Récupère l'arbre familial d'une personne (inspiré du repository distant)
     /// </summary>
     [HttpGet("{id}/family")]
@@ -252,9 +297,24 @@ public class PersonsController : ControllerBase
             var children = await _personService.GetChildrenAsync(id);
             var parents = await _personService.GetParentsAsync(id);
             var siblings = await _personService.GetSiblingsAsync(id);
+            
+            // Récupérer le conjoint actuel
+            PersonDto? spouse = null;
+            try
+            {
+                var spouseResult = await GetCurrentSpouse(id);
+                if (spouseResult.Result is OkObjectResult okResult)
+                {
+                    spouse = okResult.Value as PersonDto;
+                }
+            }
+            catch
+            {
+                // Pas de conjoint, ce n'est pas grave
+            }
 
             // Calculer les statistiques familiales
-            var totalFamilyMembers = 1 + parents.Count() + children.Count() + siblings.Count();
+            var totalFamilyMembers = 1 + parents.Count() + children.Count() + siblings.Count() + (spouse != null ? 1 : 0);
 
             var familyData = new
             {
@@ -262,7 +322,7 @@ public class PersonsController : ControllerBase
                 parents = parents,
                 children = children,
                 siblings = siblings,
-                spouse = (PersonDto?)null, // Pas encore implémenté
+                spouse = spouse,
                 grandparents = new List<PersonDto>(), // Pas encore implémenté
                 grandchildren = new List<PersonDto>(), // Pas encore implémenté
                 totalFamilyMembers = totalFamilyMembers,
@@ -274,7 +334,8 @@ public class PersonsController : ControllerBase
                     siblingsCount = siblings.Count(),
                     hasParents = parents.Any(),
                     hasChildren = children.Any(),
-                    hasSiblings = siblings.Any()
+                    hasSiblings = siblings.Any(),
+                    hasSpouse = spouse != null
                 }
             };
 

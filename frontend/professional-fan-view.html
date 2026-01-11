@@ -246,6 +246,74 @@
         .genealogy-card.central {
             border-color: #F39C12;
             border-width: 3px;
+            position: relative;
+        }
+
+        /* Icône cœur pour afficher le conjoint */
+        .spouse-heart-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            color: #E24A90;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+            opacity: 0.7;
+        }
+
+        .spouse-heart-icon:hover {
+            opacity: 1;
+            transform: scale(1.2);
+            color: #FF4081;
+        }
+
+        .spouse-heart-icon.active {
+            opacity: 1;
+            color: #FF4081;
+            animation: heartbeat 1s ease-in-out infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.15);
+            }
+        }
+
+        /* Carte du conjoint avec animation */
+        .genealogy-card.spouse {
+            border-color: #9C27B0;
+            border-width: 2px;
+            background: white;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 6;
+        }
+
+        .genealogy-card.spouse.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .genealogy-card.spouse:hover {
+            border-color: #7B1FA2;
+            box-shadow: 0 6px 20px rgba(156, 39, 176, 0.3);
+        }
+
+        /* Ligne de connexion mariage */
+        .connection-marriage-spouse {
+            background: #E24A90 !important;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: 1;
+        }
+
+        .connection-marriage-spouse.visible {
+            opacity: 0.8;
         }
 
         .card-id {
@@ -517,6 +585,21 @@
 
             updateStatus('Chargement...', 'loading');
             
+            // Supprimer TOUTES les cartes de conjoint et connexions AVANT de charger la nouvelle vue
+            const content = document.getElementById('fanContent');
+            const allSpouseCards = content.querySelectorAll('.genealogy-card.spouse');
+            allSpouseCards.forEach(card => {
+                if (card.parentNode) {
+                    card.remove();
+                }
+            });
+            const allMarriageConnections = content.querySelectorAll('.connection-marriage-spouse');
+            allMarriageConnections.forEach(conn => {
+                if (conn.parentNode) {
+                    conn.remove();
+                }
+            });
+            
             try {
                 const response = await fetch(`${API_BASE_URL}/persons/${personId}/family`);
                 if (!response.ok) throw new Error('Erreur lors du chargement des données familiales');
@@ -552,9 +635,28 @@
         // Rendre la vue éventail avec structure hiérarchique
         async function renderFanView(familyData) {
             const content = document.getElementById('fanContent');
+            
+            // Supprimer explicitement toutes les cartes de conjoint et connexions de mariage AVANT de vider le contenu
+            const existingSpouseCards = content.querySelectorAll('.genealogy-card.spouse');
+            existingSpouseCards.forEach(card => {
+                if (card.parentNode) {
+                    card.remove();
+                }
+            });
+            const existingMarriageConnections = content.querySelectorAll('.connection-marriage-spouse');
+            existingMarriageConnections.forEach(conn => {
+                if (conn.parentNode) {
+                    conn.remove();
+                }
+            });
+            
+            // Vider complètement le contenu
             content.innerHTML = '';
             allCards = [];
             allConnections = [];
+            
+            // Réinitialiser toutes les références de conjoint pour éviter les doublons
+            // (les variables locales dans setupSpouseInteraction seront réinitialisées lors du prochain appel)
             
             // Note: Le code SVG avec courbes est conservé dans PROPOSITION_DESIGN_LIENS_ENFANTS.md
             // pour référence future si besoin
@@ -939,20 +1041,39 @@
                 });
             }
 
-            // Dessiner les connexions
-            await drawConnections(generations, parentChildMap, childParentMap);
-
-            // Centrer la vue sur la personne centrale immédiatement (avant l'animation)
-            // Trouver la position de la personne centrale depuis cardPositions
+            // AFFICHER LA CARTE CENTRALE EN PREMIER pour réduire la latence
             const centralPersonData = generations[0]?.find(p => p.isCentral);
             if (centralPersonData) {
                 const centralX = cardPositions.get(centralPersonData.person.id) || 1500;
-                const centralY = centralPersonY; // Personne centrale en bas maintenant
-                centerOnPosition(centralX, centralY);
+                const centralY = centralPersonY;
+                
+                // Trouver la carte centrale dans allCards (qui contient des objets avec une propriété card)
+                const centralCardData = allCards.find(cardData => 
+                    cardData.card && cardData.card.dataset.personId === String(centralPersonData.person.id)
+                );
+                
+                if (centralCardData && centralCardData.card) {
+                    const centralCard = centralCardData.card;
+                    // Afficher la carte centrale immédiatement (sans animation)
+                    centralCard.classList.add('visible');
+                    centralCard.style.opacity = '1';
+                    
+                    // Centrer la vue immédiatement sur la carte centrale
+                    centerOnPosition(centralX, centralY);
+                    
+                    // Forcer le rendu immédiatement
+                    void content.offsetHeight; // Force reflow pour afficher immédiatement
+                }
             }
 
-            // Animer l'apparition des cartes
-            animateCards();
+            // Dessiner les connexions et animer les autres cartes en parallèle
+            // Utiliser requestAnimationFrame pour ne pas bloquer l'affichage de la carte centrale
+            requestAnimationFrame(() => {
+                drawConnections(generations, parentChildMap, childParentMap).then(() => {
+                    // Après les connexions, animer les autres cartes
+                    animateCards();
+                });
+            });
         }
 
         // Construire les générations à partir des données familiales (récursif)
@@ -1089,7 +1210,11 @@
                 return place;
             };
 
+            // Ajouter l'icône cœur pour la personne centrale
+            const heartIcon = isCentral ? '<div class="spouse-heart-icon" data-person-id="' + person.id + '" title="Afficher le conjoint">❤️</div>' : '';
+            
             card.innerHTML = `
+                ${heartIcon}
                 <div class="card-id">ID: ${person.id}</div>
                 <div class="card-name">${person.fullName}</div>
                 ${person.profession ? `<div class="card-profession">${person.profession}</div>` : ''}
@@ -1136,10 +1261,337 @@
                     loadFanViewForPerson(person.id, person.fullName);
                 });
             } else {
-                card.title = 'Personne centrale';
+                card.title = 'Personne centrale - Survolez ou cliquez sur ❤️ pour voir le conjoint';
+                // Ajouter les gestionnaires pour le conjoint (sera configuré après le rendu)
+                setupSpouseInteraction(card, person.id);
             }
 
             return card;
+        }
+
+        // Configurer l'interaction pour afficher le conjoint
+        async function setupSpouseInteraction(centralCard, personId) {
+            const heartIcon = centralCard.querySelector('.spouse-heart-icon');
+            if (!heartIcon) return;
+
+            // Vérifier si les gestionnaires d'événements ont déjà été ajoutés (éviter les doublons)
+            if (centralCard.hasAttribute('data-spouse-setup')) {
+                console.log('setupSpouseInteraction déjà configuré pour cette carte, ignoré');
+                return;
+            }
+            centralCard.setAttribute('data-spouse-setup', 'true');
+
+            let spouseCard = null;
+            let marriageConnection = null;
+            let isSpouseVisible = false;
+            let spouseData = null;
+            let viewLoadTime = Date.now(); // Timestamp du chargement de la vue (initialisé lors de setupSpouseInteraction)
+
+            // Récupérer le conjoint actuel depuis l'API
+            async function loadCurrentSpouse() {
+                try {
+                    // Utiliser le nouvel endpoint /spouse
+                    const response = await fetch(`${API_BASE_URL}/persons/${personId}/spouse`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            // Pas de conjoint, c'est normal - ne pas afficher d'erreur dans la console
+                            return null;
+                        }
+                        // Seulement logger les erreurs autres que 404
+                        console.warn('Erreur lors de la récupération du conjoint:', response.status);
+                        return null;
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    // Ne pas logger les erreurs de réseau si c'est juste un 404
+                    if (error.message && !error.message.includes('404')) {
+                        console.warn('Impossible de charger le conjoint:', error);
+                    }
+                    return null;
+                }
+            }
+
+            // Afficher/masquer le conjoint
+            async function toggleSpouse() {
+                if (!spouseData) {
+                    // Charger le conjoint la première fois
+                    spouseData = await loadCurrentSpouse();
+                    if (!spouseData) {
+                        updateStatus('Aucun conjoint actuel trouvé', 'error');
+                        setTimeout(() => {
+                            document.getElementById('status').style.display = 'none';
+                        }, 2000);
+                        return;
+                    }
+
+                    // Vérifier si la carte du conjoint existe déjà dans le DOM (éviter les doublons)
+                    const content = document.getElementById('fanContent');
+                    const existingSpouseCard = content.querySelector(`.genealogy-card.spouse[data-spouse-id="${spouseData.id}"]`);
+                    if (existingSpouseCard) {
+                        // La carte existe déjà, ne pas la recréer
+                        console.log('Carte du conjoint déjà existante, réutilisation');
+                        spouseCard = existingSpouseCard;
+                        const existingConnection = content.querySelector(`.connection-marriage-spouse[data-spouse-id="${spouseData.id}"]`);
+                        if (existingConnection) {
+                            marriageConnection = existingConnection;
+                        }
+                        // Si la carte existe déjà, on passe directement au toggle de visibilité
+                        isSpouseVisible = !isSpouseVisible;
+                        if (isSpouseVisible) {
+                            heartIcon.classList.add('active');
+                            setTimeout(() => {
+                                if (spouseCard) spouseCard.classList.add('visible');
+                                if (marriageConnection) marriageConnection.classList.add('visible');
+                            }, 10);
+                        } else {
+                            heartIcon.classList.remove('active');
+                            if (spouseCard) spouseCard.classList.remove('visible');
+                            if (marriageConnection) marriageConnection.classList.remove('visible');
+                        }
+                        return;
+                    }
+                    
+                    // Vérifier qu'il n'y a pas déjà une carte de conjoint pour une autre personne (nettoyage)
+                    const allExistingSpouseCards = content.querySelectorAll('.genealogy-card.spouse');
+                    if (allExistingSpouseCards.length > 0) {
+                        console.log('Nettoyage des cartes de conjoint existantes:', allExistingSpouseCards.length);
+                        allExistingSpouseCards.forEach(card => {
+                            if (card.parentNode && card.getAttribute('data-spouse-id') !== String(spouseData.id)) {
+                                card.remove();
+                            }
+                        });
+                    }
+                    const allExistingConnections = content.querySelectorAll('.connection-marriage-spouse');
+                    if (allExistingConnections.length > 0) {
+                        allExistingConnections.forEach(conn => {
+                            if (conn.parentNode && conn.getAttribute('data-spouse-id') !== String(spouseData.id)) {
+                                conn.remove();
+                            }
+                        });
+                    }
+
+                    // Créer la carte du conjoint
+                    // Vérifier que la carte centrale a bien une position définie
+                    const centralX = parseInt(centralCard.style.left);
+                    const centralY = parseInt(centralCard.style.top);
+                    
+                    // Si la position n'est pas définie ou est invalide, ne pas créer la carte
+                    if (isNaN(centralX) || isNaN(centralY) || (!centralCard.style.left && !centralCard.style.top)) {
+                        console.log('Carte centrale pas encore positionnée, report de la création de la carte du conjoint', { centralX, centralY, hasLeft: !!centralCard.style.left, hasTop: !!centralCard.style.top });
+                        return;
+                    }
+                    
+                    // Vérifier que les coordonnées sont raisonnables (pas 0,0 qui serait en haut à gauche)
+                    if (centralX === 0 && centralY === 0) {
+                        console.log('Coordonnées de la carte centrale suspectes (0,0), report de la création de la carte du conjoint');
+                        return;
+                    }
+                    
+                    const cardWidth = 200;
+                    const spacing = 50;
+                    const spouseX = centralX + cardWidth + spacing;
+                    
+                    // Créer la carte du conjoint directement (sans passer par createGenealogyCard pour éviter les conflits)
+                    spouseCard = document.createElement('div');
+                    spouseCard.className = 'genealogy-card spouse clickable';
+                    spouseCard.style.position = 'absolute';
+                    spouseCard.style.left = spouseX + 'px';
+                    spouseCard.style.top = centralY + 'px';
+                    spouseCard.setAttribute('data-spouse-id', spouseData.id);
+                    spouseCard.setAttribute('data-person-id', spouseData.id);
+                    spouseCard.setAttribute('data-generation', '0');
+                    
+                    // Ajouter les classes de genre
+                    if (spouseData.gender === 'Male' || spouseData.gender === 'M') {
+                        spouseCard.classList.add('male');
+                    } else {
+                        spouseCard.classList.add('female');
+                    }
+                    
+                    // Formatage des dates
+                    const formatDate = (dateStr) => {
+                        if (!dateStr) return '';
+                        const date = new Date(dateStr);
+                        return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+                    };
+                    
+                    const formatPlace = (place) => {
+                        if (!place) return '';
+                        return place;
+                    };
+                    
+                    spouseCard.innerHTML = `
+                        <div class="card-id">ID: ${spouseData.id}</div>
+                        <div class="card-name">${spouseData.fullName}</div>
+                        ${spouseData.profession ? `<div class="card-profession">${spouseData.profession}</div>` : ''}
+                        <div class="card-details">
+                            ${spouseData.birthDate ? `
+                                <div class="card-detail-line">
+                                    <span class="card-detail-icon">°</span>
+                                    <span class="card-detail-text">${formatDate(spouseData.birthDate)} ${spouseData.birthPlace ? formatPlace(spouseData.birthPlace) : ''}</span>
+                                </div>
+                            ` : ''}
+                            ${spouseData.marriageDate ? `
+                                <div class="card-detail-line">
+                                    <span class="card-detail-icon">×</span>
+                                    <span class="card-detail-text">${formatDate(spouseData.marriageDate)} ${spouseData.marriagePlace ? formatPlace(spouseData.marriagePlace) : ''}</span>
+                                </div>
+                            ` : ''}
+                            ${spouseData.deathDate || spouseData.deathStatus ? `
+                                <div class="card-detail-line">
+                                    <span class="card-detail-icon">+</span>
+                                    <span class="card-detail-text">
+                                        ${spouseData.deathDate ? formatDate(spouseData.deathDate) : ''} 
+                                        ${spouseData.deathPlace ? formatPlace(spouseData.deathPlace) : ''}
+                                        ${spouseData.deathStatus ? ` (${spouseData.deathStatus})` : ''}
+                                    </span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    spouseCard.title = 'Conjoint - Cliquez pour voir la vue éventail de cette personne';
+                    
+                    spouseCard.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        
+                        // Marquer qu'une vue est en cours de chargement pour empêcher le survol automatique
+                        if (centralCard._setViewLoading) {
+                            centralCard._setViewLoading(true);
+                        }
+                        
+                        // Sauvegarder l'ID et le nom du conjoint avant de supprimer
+                        const spouseIdToLoad = spouseData.id;
+                        const spouseNameToLoad = spouseData.fullName;
+                        
+                        // Supprimer explicitement TOUTES les cartes de conjoint et connexions avant de charger la nouvelle vue
+                        const content = document.getElementById('fanContent');
+                        const allSpouseCards = content.querySelectorAll('.genealogy-card.spouse');
+                        allSpouseCards.forEach(card => {
+                            if (card.parentNode) {
+                                card.remove();
+                            }
+                        });
+                        const allMarriageConnections = content.querySelectorAll('.connection-marriage-spouse');
+                        allMarriageConnections.forEach(conn => {
+                            if (conn.parentNode) {
+                                conn.remove();
+                            }
+                        });
+                        
+                        // Réinitialiser les variables pour éviter les doublons
+                        spouseCard = null;
+                        marriageConnection = null;
+                        isSpouseVisible = false;
+                        spouseData = null;
+                        
+                        // Attendre un peu pour s'assurer que le DOM est nettoyé avant de charger la nouvelle vue
+                        setTimeout(async () => {
+                            try {
+                                await loadFanViewForPerson(spouseIdToLoad, spouseNameToLoad);
+                                // Réinitialiser le flag après le chargement
+                                if (centralCard._setViewLoading) {
+                                    setTimeout(() => {
+                                        centralCard._setViewLoading(false);
+                                    }, 1000); // Attendre 1 seconde après le chargement
+                                }
+                            } catch (error) {
+                                console.error('Erreur lors du chargement de la vue:', error);
+                                // Réinitialiser le flag même en cas d'erreur
+                                if (centralCard._setViewLoading) {
+                                    centralCard._setViewLoading(false);
+                                }
+                            }
+                        }, 50);
+                    });
+                    
+                    content.appendChild(spouseCard);
+                    
+                    // Créer la ligne de connexion
+                    marriageConnection = document.createElement('div');
+                    marriageConnection.className = 'family-connection connection-marriage-spouse';
+                    marriageConnection.setAttribute('data-spouse-id', spouseData.id);
+                    marriageConnection.style.left = (centralX + cardWidth) + 'px';
+                    marriageConnection.style.top = (centralY + 90) + 'px'; // Milieu vertical
+                    marriageConnection.style.width = spacing + 'px';
+                    marriageConnection.style.height = '2px';
+                    marriageConnection.style.background = '#E24A90';
+                    content.appendChild(marriageConnection);
+                }
+
+                // Toggle visibility
+                isSpouseVisible = !isSpouseVisible;
+                
+                if (isSpouseVisible) {
+                    heartIcon.classList.add('active');
+                    setTimeout(() => {
+                        spouseCard.classList.add('visible');
+                        marriageConnection.classList.add('visible');
+                    }, 10);
+                } else {
+                    heartIcon.classList.remove('active');
+                    spouseCard.classList.remove('visible');
+                    marriageConnection.classList.remove('visible');
+                }
+            }
+
+            // Gestionnaires d'événements
+            heartIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleSpouse();
+            });
+
+            // Survol de la carte centrale pour afficher le conjoint
+            let hoverTimeout = null;
+            let isHovering = false;
+            let isViewLoading = false; // Flag pour empêcher le survol pendant le chargement d'une nouvelle vue
+            
+            centralCard.addEventListener('mouseenter', () => {
+                // Ne pas déclencher le survol si une vue est en cours de chargement
+                if (isViewLoading) {
+                    return;
+                }
+                
+                // Ne pas déclencher le survol automatique dans les 2 secondes suivant le chargement de la vue
+                const timeSinceLoad = Date.now() - viewLoadTime;
+                if (timeSinceLoad < 2000) {
+                    return;
+                }
+                
+                // Vérifier que la carte centrale a bien une position définie
+                const centralX = parseInt(centralCard.style.left) || 0;
+                const centralY = parseInt(centralCard.style.top) || 0;
+                if (centralX === 0 && centralY === 0 && !centralCard.style.left && !centralCard.style.top) {
+                    return; // La carte n'est pas encore positionnée
+                }
+                
+                isHovering = true;
+                hoverTimeout = setTimeout(() => {
+                    // Vérifier que la carte est toujours dans le DOM et qu'on est toujours en survol
+                    if (isHovering && !isSpouseVisible && spouseData && centralCard.parentNode && !isViewLoading) {
+                        // Vérifier qu'il n'y a pas déjà une carte de conjoint pour cette personne
+                        const content = document.getElementById('fanContent');
+                        const existingSpouse = content.querySelector(`.genealogy-card.spouse[data-spouse-id="${spouseData.id}"]`);
+                        if (!existingSpouse) {
+                            toggleSpouse();
+                        }
+                    }
+                }, 500); // Délai de 500ms avant d'afficher
+            });
+
+            centralCard.addEventListener('mouseleave', () => {
+                isHovering = false;
+                if (hoverTimeout) {
+                    clearTimeout(hoverTimeout);
+                    hoverTimeout = null;
+                }
+            });
+            
+            // Exposer isViewLoading pour qu'il puisse être modifié depuis le gestionnaire de clic
+            centralCard._isViewLoading = () => isViewLoading;
+            centralCard._setViewLoading = (value) => { isViewLoading = value; };
         }
 
         // Dessiner les connexions familiales (utilise les positions déjà calculées et centrées)
@@ -1300,14 +1752,29 @@
             }
         }
 
-        // Animer l'apparition des cartes
+        // Animer l'apparition des cartes (sauf la carte centrale déjà visible)
         function animateCards() {
-            const cards = document.querySelectorAll('.genealogy-card');
-            cards.forEach((card, index) => {
-                setTimeout(() => {
-                    card.classList.add('visible');
-                }, index * 100);
-            });
+            const cards = document.querySelectorAll('.genealogy-card:not(.visible)');
+            // Utiliser requestAnimationFrame pour optimiser le rendu
+            let index = 0;
+            const animate = () => {
+                if (index < cards.length) {
+                    cards[index].classList.add('visible');
+                    index++;
+                    // Animer plusieurs cartes par frame pour accélérer
+                    if (index < cards.length) {
+                        cards[index].classList.add('visible');
+                        index++;
+                    }
+                    if (index < cards.length) {
+                        requestAnimationFrame(animate);
+                    }
+                }
+            };
+            // Démarrer l'animation
+            if (cards.length > 0) {
+                requestAnimationFrame(animate);
+            }
         }
 
         // Zoom et pan
